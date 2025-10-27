@@ -23,9 +23,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/logo_barly.png
-    - assets/images/hero_party.jpg
-    - assets/images/bar_cover.jpg
+    - assets/images/
 
 
 
