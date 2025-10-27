@@ -14,6 +14,57 @@ class _EventsPageState extends State<EventsPage> {
   List<dynamic> events = [];
   bool loading = true;
 
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filtrer les événements'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.music_note),
+              title: const Text('Musique'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Filtre Musique appliqué')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.wine_bar),
+              title: const Text('Dégustation'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Filtre Dégustation appliqué')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.celebration),
+              title: const Text('Divertissement'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Filtre Divertissement appliqué')),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +164,22 @@ class _EventsPageState extends State<EventsPage> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Recherche bientôt disponible')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list, color: Colors.black),
+            onPressed: () {
+              _showFilterDialog();
+            },
+          ),
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())

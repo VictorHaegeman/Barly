@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'auth/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -10,37 +12,20 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final api = ApiService();
-  Map<String, dynamic>? me;
-  Map<String, List<String>> _selectedValues = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      me = await api.getMe();
-      if (mounted) setState(() {});
-    } catch (e) {
-      // Utiliser des données mock si l'API ne fonctionne pas
-      me = {
-        'firstName': 'Victor',
-        'email': 'victor@example.com',
-        'phone': '+33676952345',
-        'preferences': {
-          'ambiance': ['Lounge', 'Chic'],
-          'music': ['Jazz', 'Electro'],
-          'drinks': ['Cocktails', 'Vin'],
-          'priceLevel': 'Moyen',
-          'language': 'Français',
-          'units': 'kilomètres'
-        }
-      };
-      if (mounted) setState(() {});
-    }
-  }
+  Map<String, dynamic> userInfo = {
+    'phone': '+33676952345',
+    'email': 'zebi.hassoul@gmail.com',
+    'pushNotifications': true,
+    'emailNotifications': false,
+    'language': 'Français',
+    'units': 'kilomètres',
+    // Préférences bars et alcool
+    'preferredAmbiance': ['Chic', 'Décontracté'],
+    'preferredMusic': ['Jazz', 'Pop'],
+    'preferredDrinks': ['Cocktails', 'Vin'],
+    'priceLevel': '€€',
+    'favoriteBars': ['Le Comptoir du 7ème', 'L\'Oasis Urbaine'],
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -63,12 +48,18 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         centerTitle: false,
       ),
-      body: me == null
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(24),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Photo de profil
+              _buildProfilePicture(),
+              const SizedBox(height: 30),
+
+              // Contenu principal dans une carte blanche
+              Container(
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -82,156 +73,124 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 child: Column(
                   children: [
-                    // Photo de profil
-                    Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFE5E7EB),
-                              width: 2,
-                            ),
-                          ),
-                          child: const CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Color(0xFFF3F4F6),
-                            backgroundImage: NetworkImage(
-                              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-                            ),
-                            child: null,
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF9B7BFF),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Section Informations
-                    _buildSection(
-                      'Informations',
-                      [
-                        _buildInfoItem('Numéro de téléphone',
-                            me!['phone'] ?? '+33676952345', 'phone'),
-                        _buildInfoItem('Adresse e-mail',
-                            me!['email'] ?? 'victor@example.com', 'email'),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Section Préférences Bar & Alcool
-                    _buildSection(
-                      'Préférences Bar & Alcool',
-                      [
-                        _buildInfoItem(
-                            'Ambiance préférée',
-                            _formatPreferences(me!['preferences']?['ambiance']),
-                            'ambiance'),
-                        _buildInfoItem(
-                            'Musique préférée',
-                            _formatPreferences(me!['preferences']?['music']),
-                            'music'),
-                        _buildInfoItem(
-                            'Boissons préférées',
-                            _formatPreferences(me!['preferences']?['drinks']),
-                            'drinks'),
-                        _buildInfoItem(
-                            'Niveau de prix',
-                            me!['preferences']?['priceLevel'] ?? 'Moyen',
-                            'priceLevel'),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Section Notifications
-                    _buildSection(
-                      'Notifications',
-                      [
-                        _buildInfoItem('Notifications push', 'Activées',
-                            'pushNotifications'),
-                        _buildInfoItem(
-                            'E-mail', 'Activées', 'emailNotifications'),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Section Langue et Région
-                    _buildSection(
-                      'Langue et Région',
-                      [
-                        _buildInfoItem(
-                            'Langue de choix',
-                            me!['preferences']?['language'] ?? 'Français',
-                            'language'),
-                        _buildInfoItem(
-                            'Unités de mesures',
-                            me!['preferences']?['units'] ?? 'kilomètres',
-                            'units'),
-                      ],
-                    ),
+                    _buildSection('Informations', [
+                      _buildInfoItem(
+                          'Numéro de téléphone', userInfo['phone'], 'phone'),
+                      _buildInfoItem(
+                          'Adresse e-mail', userInfo['email'], 'email'),
+                    ]),
+                    _buildDivider(),
+                    _buildSection('Préférences Bars & Alcool', [
+                      _buildMultiSelectItem('Ambiance préférée',
+                          userInfo['preferredAmbiance'], 'preferredAmbiance'),
+                      _buildMultiSelectItem('Musique préférée',
+                          userInfo['preferredMusic'], 'preferredMusic'),
+                      _buildMultiSelectItem('Boissons préférées',
+                          userInfo['preferredDrinks'], 'preferredDrinks'),
+                      _buildInfoItem('Niveau de prix', userInfo['priceLevel'],
+                          'priceLevel'),
+                      _buildMultiSelectItem('Bars favoris',
+                          userInfo['favoriteBars'], 'favoriteBars'),
+                    ]),
+                    _buildDivider(),
+                    _buildSection('Notifications', [
+                      _buildToggleItem('Notifications push',
+                          userInfo['pushNotifications'], 'pushNotifications'),
+                      _buildToggleItem('E-mail', userInfo['emailNotifications'],
+                          'emailNotifications'),
+                    ]),
+                    _buildDivider(),
+                    _buildSection('Langue et Région', [
+                      _buildInfoItem(
+                          'Langue de choix', userInfo['language'], 'language'),
+                      _buildInfoItem(
+                          'Unités de mesures', userInfo['units'], 'units'),
+                    ]),
+                    _buildDivider(),
+                    _buildSection('Compte', [
+                      _buildLogoutButton(),
+                    ]),
                   ],
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildSection(String title, List<Widget> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildProfilePicture() {
+    return Stack(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: Color(0xFF1F2937),
+        CircleAvatar(
+          radius: 60,
+          backgroundColor: const Color(0xFFE5E7EB),
+          child: ClipOval(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.person,
+                size: 60,
+                color: Color(0xFF9B7BFF),
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        ...items,
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: _showPhotoOptions,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFF9B7BFF),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildInfoItem(String label, String value, String field) {
-    return GestureDetector(
-      onTap: () => _showEditDialog(label, value, field),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: Color(0xFFE5E7EB),
-              width: 1,
+  Widget _buildSection(String title, List<Widget> children) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value, String field) {
+    return InkWell(
+      onTap: () => _showEditDialog(label, value, field),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
             Expanded(
@@ -242,16 +201,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     label,
                     style: const TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF1F2937),
-                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF6B7280),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1F2937),
                     ),
                   ),
                 ],
@@ -268,12 +227,84 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  String _formatPreferences(dynamic preferences) {
-    if (preferences == null) return 'Non défini';
-    if (preferences is List) {
-      return preferences.join(', ');
-    }
-    return preferences.toString();
+  Widget _buildToggleItem(String label, bool value, String field) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: (newValue) {
+              setState(() {
+                userInfo[field] = newValue;
+              });
+            },
+            activeColor: const Color(0xFF9B7BFF),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectItem(
+      String label, List<String> values, String field) {
+    return InkWell(
+      onTap: () => _showMultiSelectDialog(label, values, field),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    values.isEmpty ? 'Aucune sélection' : values.join(', '),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1F2937),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Color(0xFF9CA3AF),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      height: 1,
+      color: const Color(0xFFE5E7EB),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+    );
   }
 
   void _showEditDialog(String label, String currentValue, String field) {
@@ -283,20 +314,12 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Modifier $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (field == 'ambiance' || field == 'music' || field == 'drinks')
-              _buildMultiSelectField(field, currentValue)
-            else
-              TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  labelText: label,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-          ],
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
@@ -305,116 +328,257 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final newValue =
-                  field == 'ambiance' || field == 'music' || field == 'drinks'
-                      ? _getSelectedValues(field)
-                      : controller.text;
-              _saveField(field, newValue);
+              setState(() {
+                userInfo[field] = controller.text;
+              });
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Information mise à jour')),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF9B7BFF),
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Sauvegarder',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Sauvegarder'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMultiSelectField(String field, String currentValue) {
-    List<String> options = [];
-    List<String> selected =
-        currentValue.split(', ').where((e) => e.isNotEmpty).toList();
-
+  void _showMultiSelectDialog(
+      String label, List<String> currentValues, String field) {
+    // Définir les options disponibles selon le type de préférence
+    List<String> availableOptions = [];
     switch (field) {
-      case 'ambiance':
-        options = [
-          'Lounge',
+      case 'preferredAmbiance':
+        availableOptions = [
           'Chic',
-          'Dance',
-          'Intime',
+          'Décontracté',
           'Festif',
-          'Décontracté'
+          'Intimiste',
+          'Branché',
+          'Cosy'
         ];
         break;
-      case 'music':
-        options = [
+      case 'preferredMusic':
+        availableOptions = [
           'Jazz',
-          'Electro',
-          'Rock',
           'Pop',
+          'Rock',
+          'Électro',
+          'Latino',
           'Classique',
-          'Rap',
-          'Reggae'
+          'Hip-Hop'
         ];
         break;
-      case 'drinks':
-        options = [
+      case 'preferredDrinks':
+        availableOptions = [
           'Cocktails',
           'Vin',
           'Bière',
-          'Whisky',
-          'Champagne',
-          'Spiritueux'
+          'Spiritueux',
+          'Sans alcool',
+          'Champagne'
+        ];
+        break;
+      case 'favoriteBars':
+        availableOptions = [
+          'Le Comptoir du 7ème',
+          'L\'Oasis Urbaine',
+          'Le Bar d\'Or',
+          'Le Speakeasy',
+          'Cocktail Corner',
+          'Le Vin & Co'
         ];
         break;
     }
 
-    return StatefulBuilder(
-      builder: (context, setState) => Column(
-        children: options
-            .map((option) => CheckboxListTile(
+    Map<String, bool> selectedOptions = {};
+    for (String option in availableOptions) {
+      selectedOptions[option] = currentValues.contains(option);
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Modifier $label'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: availableOptions.length,
+              itemBuilder: (context, index) {
+                String option = availableOptions[index];
+                return CheckboxListTile(
                   title: Text(option),
-                  value: selected.contains(option),
+                  value: selectedOptions[option] ?? false,
                   onChanged: (bool? value) {
                     setState(() {
-                      if (value == true) {
-                        selected.add(option);
-                      } else {
-                        selected.remove(option);
-                      }
+                      selectedOptions[option] = value ?? false;
                     });
-                    // Stocker les valeurs sélectionnées pour les récupérer plus tard
-                    _selectedValues[field] = selected;
                   },
-                ))
-            .toList(),
+                  activeColor: const Color(0xFF9B7BFF),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                List<String> newValues = selectedOptions.entries
+                    .where((entry) => entry.value)
+                    .map((entry) => entry.key)
+                    .toList();
+
+                setState(() {
+                  userInfo[field] = newValues;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Préférences mises à jour')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF9B7BFF),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sauvegarder'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  String _getSelectedValues(String field) {
-    return _selectedValues[field]?.join(', ') ?? '';
+  Widget _buildLogoutButton() {
+    return InkWell(
+      onTap: _showLogoutDialog,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.logout,
+              color: Colors.red[600],
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Se déconnecter',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: Colors.red[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Color(0xFF9CA3AF),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  void _saveField(String field, dynamic newValue) {
-    setState(() {
-      if (field == 'phone' || field == 'email') {
-        me![field] = newValue;
-      } else if (field == 'pushNotifications' ||
-          field == 'emailNotifications') {
-        // Gérer les notifications
-        me![field] = newValue;
-      } else {
-        // Gérer les préférences
-        if (me!['preferences'] == null) {
-          me!['preferences'] = {};
-        }
-        if (field == 'ambiance' || field == 'music' || field == 'drinks') {
-          me!['preferences'][field] =
-              newValue.split(', ').where((e) => e.isNotEmpty).toList();
-        } else {
-          me!['preferences'][field] = newValue;
-        }
-      }
-    });
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Changer la photo de profil',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Prendre une photo'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Fonctionnalité bientôt disponible')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choisir depuis la galerie'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Fonctionnalité bientôt disponible')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Supprimer la photo'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Photo supprimée')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Informations mises à jour !'),
-        backgroundColor: Color(0xFF10B981),
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Se déconnecter',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Êtes-vous sûr de vouloir vous déconnecter ?',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await api.logout();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[600],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
       ),
     );
   }

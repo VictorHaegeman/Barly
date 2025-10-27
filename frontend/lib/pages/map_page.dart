@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/simple_map_widget.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -8,161 +9,173 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  bool showList = true;
+  bool isMapView = true;
 
-  final bars = [
+  List<Map<String, dynamic>> bars = [
     {
-      'name': 'Le Comptoir d\'Or',
-      'desc':
-          'Ambiance chic et feutrée, cocktails signature et lumière dorée pour une soirée élégante au cœur de la ville.',
-      'image': 'assets/images/bar_cover.jpg',
-      'price': '6,50€',
-      'lat': 48.8566,
-      'lng': 2.3522,
+      'id': '1',
+      'name': 'Le Comptoir du 7ème',
+      'price': '8-12€',
+      'desc': 'Bar à cocktails branché',
+      'image':
+          'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
     },
     {
+      'id': '2',
       'name': 'L\'Oasis Urbaine',
-      'desc':
-          'Bar tropical niché dans le centre-ville — plantes, mojitos et bonne humeur garantis.',
-      'image': 'assets/images/hero_party.jpg',
-      'price': '5,90€',
-      'lat': 48.869,
-      'lng': 2.303,
+      'price': '15-25€',
+      'desc': 'Rooftop avec vue panoramique',
+      'image':
+          'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop',
     },
     {
-      'name': 'Le Verre à Soi',
-      'desc':
-          'Cave-bar intimiste où chaque vin raconte une histoire, accompagnée de planches locales.',
-      'image': 'assets/images/bar_cover.jpg',
-      'price': '7,00€',
-      'lat': 48.86,
-      'lng': 2.377,
+      'id': '3',
+      'name': 'Le Bar d\'Or',
+      'price': '5-8€',
+      'desc': 'Ambiance cosy et chaleureuse',
+      'image':
+          'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&h=300&fit=crop',
     },
     {
-      'name': 'Les Frères Houblon',
-      'desc':
-          'Le rendez-vous des amateurs de bières artisanales. Dégustation, convivialité et fous rires assurés.',
-      'image': 'assets/images/hero_party.jpg',
-      'price': '6,00€',
-      'lat': 48.858,
-      'lng': 2.341,
+      'id': '4',
+      'name': 'Le Speakeasy',
+      'price': '12-18€',
+      'desc': 'Bar clandestin vintage',
+      'image':
+          'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop',
+    },
+    {
+      'id': '5',
+      'name': 'Cocktail Corner',
+      'price': '10-15€',
+      'desc': 'Spécialités cocktails créatifs',
+      'image':
+          'https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&h=300&fit=crop',
+    },
+    {
+      'id': '6',
+      'name': 'Le Vin & Co',
+      'price': '6-12€',
+      'desc': 'Bar à vin et tapas',
+      'image':
+          'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=400&h=300&fit=crop',
     },
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Barly',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            color: Color(0xFF9B7BFF),
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      backgroundColor: const Color(0xFFF6F6FA),
       body: Column(
         children: [
-          const SizedBox(height: 16),
-          _buildToggle(), // ✅ ici on l’appelle simplement
-          const SizedBox(height: 16),
+          // Toggle au-dessus de l'AppBar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _buildToggle(),
+          ),
+          // Contenu principal
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: showList ? _buildListView() : _buildMapView(),
-            ),
+            child: isMapView ? _buildMapView() : _buildListView(),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateBarDialog,
-        backgroundColor: const Color(0xFF9B7BFF),
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _showCreateBarDialog,
+            backgroundColor: const Color(0xFF9B7BFF),
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _getCurrentLocation,
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.my_location, color: Color(0xFF9B7BFF)),
+          ),
+        ],
       ),
     );
   }
 
-  /// --- Toggle Stylé ---
   Widget _buildToggle() {
     return Center(
       child: Container(
-        width: 200, // Largeur fixe réduite
-        height: 50,
+        width: 180,
+        height: 36,
+        padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.black, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.black, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Stack(
+        child: Row(
           children: [
-            // Bulle animée (fond lavande)
-            AnimatedAlign(
-              alignment:
-                  showList ? Alignment.centerLeft : Alignment.centerRight,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: Container(
-                width: 97, // Largeur fixe pour chaque option
-                height: 44,
-                margin: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF9B7BFF),
-                  borderRadius: BorderRadius.circular(22),
+            Expanded(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => setState(() => isMapView = true),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: isMapView
+                          ? const Color(0xFF9B7BFF)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Carte',
+                        style: TextStyle(
+                          color: isMapView
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-
-            // Texte "Liste" et "Carte"
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showList = true),
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "Liste",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: showList ? Colors.white : Colors.black,
-                            fontSize: 16,
-                          ),
+            Expanded(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => setState(() => isMapView = false),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: !isMapView
+                          ? const Color(0xFF9B7BFF)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Liste',
+                        style: TextStyle(
+                          color: !isMapView
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),
                   ),
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showList = false),
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "Carte",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: !showList ? Colors.white : Colors.black,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -170,16 +183,21 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  /// --- Vue Liste ---
+  Widget _buildMapView() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: SimpleMapWidget(bars: bars),
+    );
+  }
+
   Widget _buildListView() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: bars.length,
-      itemBuilder: (context, i) {
-        final bar = bars[i];
+      itemBuilder: (context, index) {
+        final bar = bars[index];
         return Container(
-          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -192,79 +210,74 @@ class _MapPageState extends State<MapPage> {
             ],
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF9B7BFF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF9B7BFF).withOpacity(0.2),
-                    width: 1,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                  image: DecorationImage(
+                    image: NetworkImage(bar['image'] as String),
+                    fit: BoxFit.cover,
+                    onError: (exception, stackTrace) {
+                      // Fallback to icon if image fails to load
+                    },
                   ),
                 ),
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=150&h=150&fit=crop',
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.local_bar,
-                      color: Color(0xFF9B7BFF),
-                      size: 32,
-                    );
-                  },
-                ),
+                child: bar['image'] == null
+                    ? const Icon(
+                        Icons.local_bar,
+                        color: Color(0xFF9B7BFF),
+                        size: 40,
+                      )
+                    : null,
               ),
-              const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bar['name'] as String,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      bar['desc'] as String,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF9B7BFF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFF9B7BFF).withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        'Pinte : ${bar['price'] as String}',
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bar['name'] as String,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9B7BFF),
-                          fontSize: 12,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1F2937),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        bar['desc'] as String,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          bar['price'] as String,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -274,82 +287,44 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  /// --- Vue Carte ---
-  Widget _buildMapView() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.map,
-              size: 64,
-              color: Color(0xFF9B7BFF),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Carte des bars',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Google Maps sera intégré ici',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showCreateBarDialog() {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+    final priceController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Ajouter un bar'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Nom du bar',
-                border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom du bar',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
               ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: priceCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Prix d\'une pinte (ex: 6,50€)',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Prix (ex: 8-12€)',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -358,34 +333,44 @@ class _MapPageState extends State<MapPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameCtrl.text.isNotEmpty) {
-                final newBar = {
-                  'id': 'b${DateTime.now().millisecondsSinceEpoch}',
-                  'name': nameCtrl.text,
-                  'desc': descCtrl.text.isNotEmpty
-                      ? descCtrl.text
-                      : 'Nouveau bar ajouté par la communauté.',
-                  'price': priceCtrl.text.isNotEmpty ? priceCtrl.text : '6,50€',
-                };
+              if (nameController.text.isNotEmpty &&
+                  descController.text.isNotEmpty &&
+                  priceController.text.isNotEmpty) {
                 setState(() {
-                  bars.insert(0, newBar);
+                  bars.add({
+                    'id': (bars.length + 1).toString(),
+                    'name': nameController.text,
+                    'price': priceController.text,
+                    'desc': descController.text,
+                    'image':
+                        'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
+                  });
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Bar ajouté avec succès !')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Bar ajouté avec succès !'),
-                    backgroundColor: Color(0xFF10B981),
-                  ),
+                      content: Text('Veuillez remplir tous les champs')),
                 );
               }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF9B7BFF),
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Ajouter', style: TextStyle(color: Colors.white)),
+            child: const Text('Ajouter'),
           ),
         ],
       ),
+    );
+  }
+
+  void _getCurrentLocation() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Localisation activée')),
     );
   }
 }

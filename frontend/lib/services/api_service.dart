@@ -14,6 +14,11 @@ class ApiService {
     await prefs.setString('token', token);
   }
 
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+  }
+
   Future<String?> get token async =>
       (await SharedPreferences.getInstance()).getString('token');
 

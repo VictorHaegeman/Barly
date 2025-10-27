@@ -1,6 +1,9 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'bar_detail_page.dart';
+import 'all_bars_page.dart';
+import 'all_events_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,74 +25,79 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    try {
-      bars = await api.getBars();
-      events = await api.getEvents();
-    } catch (_) {
-      // Données mock
-      bars = [
-        {
-          'id': 'b1',
-          'name': 'Le Comptoir d\'Or',
-          'ambiance': ['Chic', 'Lounge'],
-          'priceLevel': 'Élevé',
-          'rating': 4.8,
-        },
-        {
-          'id': 'b2',
-          'name': 'L\'Oasis Urbaine',
-          'ambiance': ['Tropical', 'Décontracté'],
-          'priceLevel': 'Moyen',
-          'rating': 4.5,
-        },
-        {
-          'id': 'b3',
-          'name': 'Le Verre à Soi',
-          'ambiance': ['Intimiste', 'Vin'],
-          'priceLevel': 'Moyen',
-          'rating': 4.7,
-        },
-      ];
+    // Utiliser directement les données mock pour éviter les problèmes d'API
+    bars = [
+      {
+        'id': 'b1',
+        'name': 'Le Comptoir d\'Or',
+        'ambiance': ['Chic', 'Lounge'],
+        'priceLevel': 'Élevé',
+        'rating': 4.8,
+        'pintPrice': '8€',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
+      },
+      {
+        'id': 'b2',
+        'name': 'L\'Oasis Urbaine',
+        'ambiance': ['Tropical', 'Décontracté'],
+        'priceLevel': 'Moyen',
+        'rating': 4.5,
+        'pintPrice': '6€',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=300&fit=crop',
+      },
+      {
+        'id': 'b3',
+        'name': 'Le Verre à Soi',
+        'ambiance': ['Intimiste', 'Vin'],
+        'priceLevel': 'Moyen',
+        'rating': 4.7,
+        'pintPrice': '5€',
+        'imageUrl':
+            'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&h=300&fit=crop',
+      },
+    ];
 
-      events = [
-        {
-          'id': 'e1',
-          'title': 'Soirée House Music',
-          'bar': 'Le Comptoir d\'Or',
-          'date': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
-          'participants': 24,
-          'price': '12€',
-          'type': 'Musique',
-        },
-        {
-          'id': 'e2',
-          'title': 'Live Jazz Intime',
-          'bar': 'L\'Oasis Urbaine',
-          'date': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
-          'participants': 18,
-          'price': '8€',
-          'type': 'Concert',
-        },
-        {
-          'id': 'e3',
-          'title': 'Dégustation de Vins',
-          'bar': 'Le Verre à Soi',
-          'date': DateTime.now().add(const Duration(days: 5)).toIso8601String(),
-          'participants': 12,
-          'price': '15€',
-          'type': 'Dégustation',
-        },
-        {
-          'id': 'e4',
-          'title': 'Soirée Bières Artisanales',
-          'bar': 'Les Frères Houblon',
-          'date': DateTime.now().add(const Duration(days: 7)).toIso8601String(),
-          'participants': 32,
-          'price': '10€',
-          'type': 'Dégustation',
-        },
-      ];
-    }
+    events = [
+      {
+        'id': 'e1',
+        'title': 'Soirée House Music',
+        'bar': 'Le Comptoir d\'Or',
+        'date': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+        'participants': 24,
+        'price': '12€',
+        'type': 'Musique',
+      },
+      {
+        'id': 'e2',
+        'title': 'Live Jazz Intime',
+        'bar': 'L\'Oasis Urbaine',
+        'date': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+        'participants': 18,
+        'price': '8€',
+        'type': 'Concert',
+      },
+      {
+        'id': 'e3',
+        'title': 'Dégustation de Vins',
+        'bar': 'Le Verre à Soi',
+        'date': DateTime.now().add(const Duration(days: 5)).toIso8601String(),
+        'participants': 12,
+        'price': '15€',
+        'type': 'Dégustation',
+      },
+      {
+        'id': 'e4',
+        'title': 'Soirée Bières Artisanales',
+        'bar': 'Les Frères Houblon',
+        'date': DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+        'participants': 32,
+        'price': '10€',
+        'type': 'Dégustation',
+      },
+    ];
+
     if (mounted) setState(() => loading = false);
   }
 
@@ -195,7 +203,14 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.pushNamed(context, '/map'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AllBarsPage(),
+                              ),
+                            );
+                          },
                           child: const Text(
                             'Voir tout',
                             style: TextStyle(color: Color(0xFF9B7BFF)),
@@ -233,8 +248,14 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/events'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AllEventsPage(),
+                              ),
+                            );
+                          },
                           child: const Text(
                             'Voir tout',
                             style: TextStyle(color: Color(0xFF9B7BFF)),
@@ -258,101 +279,121 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBarCard(Map<String, dynamic> bar) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BarDetailPage(bar: bar),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image placeholder
-          Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: const Color(0xFF9B7BFF).withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.local_bar,
-                size: 40,
-                color: Color(0xFF9B7BFF),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Container(
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  bar['name'] ?? 'Bar',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFF1F2937),
-                  ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  (bar['ambiance'] ?? []).join(', '),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star,
-                      size: 16,
-                      color: Color(0xFFF59E0B),
+                child: Image.network(
+                  bar['imageUrl'] ?? '',
+                  height: 80,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF9B7BFF).withOpacity(0.1),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${bar['rating'] ?? 4.5}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
+                    child: const Center(
+                      child: Icon(
+                        Icons.local_bar,
+                        size: 40,
+                        color: Color(0xFF9B7BFF),
                       ),
                     ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF9B7BFF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        bar['priceLevel'] ?? 'Moyen',
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bar['name'] ?? 'Bar',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    (bar['ambiance'] ?? []).join(', '),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        (bar['ambiance'] ?? []).join(', '),
                         style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9B7BFF),
+                          fontSize: 11,
+                          color: Color(0xFF6B7280),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          bar['pintPrice'] ?? '5€',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

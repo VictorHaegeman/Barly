@@ -7,7 +7,6 @@ import 'pages/map_page.dart';
 import 'pages/events_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/boosts_page.dart';
-import 'services/api_service.dart';
 
 void main() {
   runApp(const BarlyApp());
@@ -28,7 +27,7 @@ class BarlyApp extends StatelessWidget {
         '/map': (_) => const MapPage(),
         '/boosts': (_) => const BoostsPage(),
       },
-      home: const SplashGate(),
+      home: const MainTabs(),
     );
   }
 }
@@ -47,19 +46,42 @@ class _SplashGateState extends State<SplashGate> {
   }
 
   Future<void> _route() async {
-    final token = await ApiService().token;
+    // Aller directement à la page principale pour le debug
     if (!mounted) return;
-    if (token != null && token.isNotEmpty) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const MainTabs()));
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => const MainTabs()));
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return const Scaffold(
+      backgroundColor: Color(0xFFF6F6FA),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.local_bar,
+              size: 80,
+              color: Color(0xFF9B7BFF),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Barly',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF9B7BFF),
+              ),
+            ),
+            SizedBox(height: 10),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9B7BFF)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
