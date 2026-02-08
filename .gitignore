@@ -1,0 +1,4 @@
+﻿# ---- ENV / SECRETS (NE JAMAIS COMMIT) ----
+**/.env
+**/.env.*
+!.env.example
