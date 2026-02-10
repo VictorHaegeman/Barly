@@ -18,11 +18,11 @@ class _EventsPageState extends State<EventsPage> {
   @override
   void initState() {
     super.initState();
-    authed = api.isAuthenticated;
     _load();
   }
 
   Future<void> _load() async {
+    authed = api.isAuthenticated;
     try {
       final fetched = await api.getEvents();
       events = fetched
@@ -445,11 +445,21 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   }
 
   Future<void> _createEvent() async {
+    if (!api.isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Connecte-toi pour créer un événement')));
+      }
+      return;
+    }
     if (titleCtrl.text.isEmpty || barId == null) return;
 
     try {
       final created = await api.createEvent(
-          barId: barId!, title: titleCtrl.text, date: date.toIso8601String());
+          barId: barId!,
+          title: titleCtrl.text,
+          date: date.toIso8601String(),
+          type: eventType);
       final event = {
         ...created,
         'bar': bars.firstWhere((b) => (b['id']?.toString() ?? b['_id']?.toString()) == barId)['name'],

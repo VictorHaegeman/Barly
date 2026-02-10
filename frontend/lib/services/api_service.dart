@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service d'accès aux données via Supabase.
@@ -142,14 +143,17 @@ class ApiService {
     required String barId,
     required String title,
     required String date,
+    String? type,
   }) async {
     final user = client.auth.currentUser;
+    if (user == null) throw Exception('Unauthenticated');
     final insert = await client.from('events').insert({
       'bar_id': barId,
       'title': title,
       'date': date,
-      'participants': user != null ? [user.id] : [],
-      'type': 'Événement',
+      'participants': [user.id],
+      'type': type ?? 'Événement',
+      'created_by': user.id,
     }).select().single();
     return Map<String, dynamic>.from(insert);
   }
@@ -159,10 +163,106 @@ class ApiService {
     if (user == null) return null;
     final profile =
         await client.from('users').select().eq('id', user.id).maybeSingle();
+    final prefs = Map<String, dynamic>.from(
+        profile?['prefs'] ?? user.userMetadata?['prefs'] ?? {});
     return {
       'id': user.id,
       'email': user.email,
-      'profile': profile,
+      'firstName':
+          profile?['first_name'] ?? user.userMetadata?['first_name'],
+      'avatarUrl': profile?['avatar_url'],
+      'phone': profile?['phone'],
+      'prefs': prefs,
+      'notif_push': profile?['notif_push'] ?? true,
+      'notif_email': profile?['notif_email'] ?? false,
+      'price_level': profile?['price_level'],
     };
+  }
+
+  Future<void> updateProfile({
+    String? firstName,
+    String? email,
+    String? phone,
+    String? avatarUrl,
+    Map<String, dynamic>? prefs,
+    String? priceLevel,
+    bool? notifPush,
+    bool? notifEmail,
+  }) async {
+    final user = client.auth.currentUser;
+    if (user == null) throw Exception('Unauthenticated');
+
+    // Màj auth (email/phone)
+    if (email != null || phone != null) {
+      await client.auth.updateUser(
+        UserAttributes(
+          email: email,
+          phone: phone,
+          data: {
+            if (firstName != null) 'first_name': firstName,
+            if (prefs != null) 'prefs': prefs,
+          },
+        ),
+      );
+    }
+
+    await client.from('users').upsert({
+      'id': user.id,
+      if (email != null) 'email': email,
+      if (firstName != null) 'first_name': firstName,
+      if (phone != null) 'phone': phone,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      if (prefs != null) 'prefs': prefs,
+      if (priceLevel != null) 'price_level': priceLevel,
+      if (notifPush != null) 'notif_push': notifPush,
+      if (notifEmail != null) 'notif_email': notifEmail,
+    });
+  }
+
+  Future<String> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final user = client.auth.currentUser;
+    if (user == null) throw Exception('Unauthenticated');
+    final path = '${user.id}/$fileName';
+    await client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+        );
+    final url = client.storage.from('avatars').getPublicUrl(path);
+    await updateProfile(avatarUrl: url);
+    return url;
+  }
+
+  Future<Map<String, dynamic>> createBar({
+    required String name,
+    String? address,
+    String? coverUrl,
+    List<String>? ambiance,
+    List<String>? music,
+    String? priceLevel,
+    String? pintPrice,
+    String? description,
+  }) async {
+    final user = client.auth.currentUser;
+    if (user == null) throw Exception('Unauthenticated');
+    final row = await client
+        .from('bars')
+        .insert({
+          'name': name,
+          'address': address,
+          'cover_url': coverUrl,
+          'ambiance': ambiance ?? [],
+          'music': music ?? [],
+          'price_level': priceLevel,
+          'pint_price': pintPrice,
+          'description': description,
+          'created_at': DateTime.now().toIso8601String(),
+        })
+        .select()
+        .single();
+    return Map<String, dynamic>.from(row);
   }
 }

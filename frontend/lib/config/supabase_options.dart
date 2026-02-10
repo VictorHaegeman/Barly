@@ -8,8 +8,9 @@ class SupabaseOptions {
 
   /// Valeurs de secours pour le développement local (laisser vide pour éviter
   /// de compromettre des clés en clair dans le code).
-  static const fallbackUrl = '';
-  static const fallbackAnonKey = '';
+  static const fallbackUrl = 'https://ygrgrtwxyogzhnlfftyw.supabase.co';
+  static const fallbackAnonKey =
+      'sb_publishable_jE0ZrF-b3ZIAJgqNrdSywg_V9BGCp5F';
 
   static String get resolvedUrl => url.isNotEmpty ? url : fallbackUrl;
   static String get resolvedAnonKey =>

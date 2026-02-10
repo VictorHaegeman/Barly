@@ -2,6 +2,7 @@
 import '../services/api_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'auth/login_page.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -16,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
     'firstName': 'Invité',
     'email': '',
     'phone': '',
+    'avatarUrl': '',
     'pushNotifications': true,
     'emailNotifications': false,
     'language': 'Français',
@@ -27,6 +29,8 @@ class _ProfilePageState extends State<ProfilePage> {
     'favoriteBars': <String>[],
   };
   bool loading = true;
+  final _picker = ImagePicker();
+  bool avatarUploading = false;
 
   @override
   void initState() {
@@ -38,13 +42,19 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final me = await api.getMe();
       if (me != null) {
+        final prefs = Map<String, dynamic>.from(me['prefs'] ?? {});
         userInfo = {
           ...userInfo,
           'firstName': me['firstName'] ?? userInfo['firstName'],
           'email': me['email'] ?? userInfo['email'],
-          'preferredAmbiance': me['preferences']?['ambiance'] ?? [],
-          'preferredMusic': me['preferences']?['music'] ?? [],
-          'preferredDrinks': me['preferences']?['drinks'] ?? [],
+          'avatarUrl': me['avatarUrl'] ?? '',
+          'phone': me['phone'] ?? '',
+          'preferredAmbiance': List<String>.from(prefs['ambiance'] ?? []),
+          'preferredMusic': List<String>.from(prefs['music'] ?? []),
+          'preferredDrinks': List<String>.from(prefs['drinks'] ?? []),
+          'pushNotifications': me['notif_push'] ?? true,
+          'emailNotifications': me['notif_email'] ?? false,
+          'priceLevel': me['price_level'] ?? userInfo['priceLevel'],
         };
       }
     } catch (_) {
@@ -111,6 +121,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           'Prénom', userInfo['firstName'] ?? '', 'firstName'),
                       _buildInfoItem('Adresse e-mail', userInfo['email'] ?? '',
                           'email'),
+                      _buildInfoItem('Téléphone', userInfo['phone'] ?? '',
+                          'phone'),
                     ]),
                     _buildDivider(),
                     _buildSection('Préférences Bars & Alcool', [
@@ -153,26 +165,31 @@ class _ProfilePageState extends State<ProfilePage> {
         .map((p) => p[0].toUpperCase())
         .take(2)
         .join();
+    final avatarUrl = (userInfo['avatarUrl'] ?? '').toString();
 
     return Stack(
       children: [
         CircleAvatar(
           radius: 60,
           backgroundColor: const Color(0xFFE5E7EB),
-          child: initials.isNotEmpty
-              ? Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF9B7BFF),
-                  ),
-                )
-              : const Icon(
-                  Icons.person,
-                  size: 60,
-                  color: Color(0xFF9B7BFF),
-                ),
+          backgroundImage:
+              avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+          child: avatarUrl.isNotEmpty
+              ? null
+              : (initials.isNotEmpty
+                  ? Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF9B7BFF),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.person,
+                      size: 60,
+                      color: Color(0xFF9B7BFF),
+                    )),
         ),
         Positioned(
           bottom: 0,
@@ -277,10 +294,21 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           Switch(
             value: value,
-            onChanged: (newValue) {
-              setState(() {
-                userInfo[field] = newValue;
-              });
+            onChanged: (newValue) async {
+              setState(() => userInfo[field] = newValue);
+              try {
+                await api.updateProfile(
+                  notifPush:
+                      field == 'pushNotifications' ? newValue : null,
+                  notifEmail:
+                      field == 'emailNotifications' ? newValue : null,
+                );
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Impossible de sauvegarder la préférence')));
+                }
+              }
             },
             activeColor: const Color(0xFF9B7BFF),
           ),
@@ -361,14 +389,37 @@ class _ProfilePageState extends State<ProfilePage> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                userInfo[field] = controller.text;
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Information mise à jour')),
-              );
+            onPressed: () async {
+              try {
+                await api.updateProfile(
+                  firstName: field == 'firstName' ? controller.text : null,
+                  email: field == 'email' ? controller.text : null,
+                  phone: field == 'phone' ? controller.text : null,
+                  priceLevel:
+                      field == 'priceLevel' ? controller.text : null,
+                );
+                setState(() {
+                  userInfo[field] = controller.text;
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(field == 'email'
+                          ? 'Email mis à jour. Vérifie ta boîte mail si la confirmation est requise.'
+                          : 'Information mise à jour'),
+                    ),
+                  );
+                }
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Erreur lors de la mise à jour du profil')),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF9B7BFF),
@@ -440,6 +491,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 setState(() {
                   userInfo[field] = newValues;
                 });
+                final prefs = {
+                  'ambiance': List<String>.from(userInfo['preferredAmbiance']),
+                  'music': List<String>.from(userInfo['preferredMusic']),
+                  'drinks': List<String>.from(userInfo['preferredDrinks']),
+                };
+                api.updateProfile(prefs: prefs);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Préférences mises à jour')),
@@ -511,9 +568,7 @@ class _ProfilePageState extends State<ProfilePage> {
               title: const Text('Prendre une photo'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité bientôt dispo')),
-                );
+                _handleAvatar(ImageSource.camera);
               },
             ),
             ListTile(
@@ -521,15 +576,44 @@ class _ProfilePageState extends State<ProfilePage> {
               title: const Text('Choisir depuis la galerie'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité bientôt dispo')),
-                );
+                _handleAvatar(ImageSource.gallery);
               },
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _handleAvatar(ImageSource source) async {
+    if (avatarUploading) return;
+    setState(() => avatarUploading = true);
+    try {
+      final file = await _picker.pickImage(source: source, maxWidth: 800);
+      if (file == null) {
+        setState(() => avatarUploading = false);
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      final url =
+          await api.uploadAvatar(bytes: bytes, fileName: file.name);
+      setState(() {
+        userInfo['avatarUrl'] = url;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo mise à jour')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Impossible de téléverser la photo (vérifie le bucket "avatars")')));
+      }
+    } finally {
+      if (mounted) setState(() => avatarUploading = false);
+    }
   }
 
   void _showLogoutDialog() {
