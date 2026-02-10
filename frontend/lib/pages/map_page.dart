@@ -19,8 +19,7 @@ class _MapPageState extends State<MapPage> {
   bool loading = true;
   GoogleMapController? mapController;
 
-  bool get _useGoogleMap =>
-      GoogleMapsConfig.apiKey != 'YOUR_GOOGLE_MAPS_API_KEY' && bars.any((b) => b['geo'] != null);
+  bool get _useGoogleMap => GoogleMapsConfig.apiKey.isNotEmpty;
 
   @override
   void initState() {
