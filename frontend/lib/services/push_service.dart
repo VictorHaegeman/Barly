@@ -25,7 +25,7 @@ class PushService {
       await _persistToken(token);
     }
 
-    FirebaseMessaging.onTokenRefresh.listen((token) async {
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
       await _persistToken(token);
     });
 
