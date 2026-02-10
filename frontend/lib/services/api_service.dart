@@ -209,17 +209,19 @@ class ApiService {
       );
     }
 
-    await client.from('users').upsert({
+    // Toujours fournir l'email (NOT NULL) pour éviter l'échec de l'upsert
+    final update = <String, dynamic>{
       'id': user.id,
-      if (email != null) 'email': email,
-      if (firstName != null) 'first_name': firstName,
-      if (phone != null) 'phone': phone,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (prefs != null) 'prefs': prefs,
-      if (priceLevel != null) 'price_level': priceLevel,
-      if (notifPush != null) 'notif_push': notifPush,
-      if (notifEmail != null) 'notif_email': notifEmail,
-    });
+      'email': email ?? user.email, // requirement NOT NULL
+    };
+    if (firstName != null) update['first_name'] = firstName;
+    if (phone != null) update['phone'] = phone;
+    if (avatarUrl != null) update['avatar_url'] = avatarUrl;
+    if (prefs != null) update['prefs'] = prefs;
+    if (priceLevel != null) update['price_level'] = priceLevel;
+    if (notifPush != null) update['notif_push'] = notifPush;
+    if (notifEmail != null) update['notif_email'] = notifEmail;
+    await client.from('users').upsert(update);
   }
 
   Future<void> saveFcmToken(String token) async {
