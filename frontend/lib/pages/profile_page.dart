@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'auth/login_page.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/api_service.dart';
+import 'auth/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,26 +12,26 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final api = ApiService();
+  final _picker = ImagePicker();
+
   Map<String, dynamic> userInfo = {
-    'firstName': 'Invité',
+    'firstName': 'Invite',
     'email': '',
     'phone': '',
     'avatarUrl': '',
     'pushNotifications': true,
     'emailNotifications': false,
-    'language': 'Français',
-    'units': 'kilomètres',
-    'preferredAmbiance': <String>[],
-    'preferredMusic': <String>[],
-    'preferredDrinks': <String>[],
-    'priceLevel': '€',
-    'favoriteBars': <String>[],
+    'ambiancePrefs': <String>[],
+    'musicPrefs': <String>[],
+    'drinkPrefs': <String>[],
+    'priceLevel': '€€',
   };
+
   bool loading = true;
-  final _picker = ImagePicker();
   bool avatarUploading = false;
-  final phoneCtrl = TextEditingController();
-  final otpCtrl = TextEditingController();
+  static const _ambianceOptions = ['Cosy', 'Dance', 'Chill', 'Lounge'];
+  static const _musicOptions = ['House', 'Pop', 'Jazz', 'RnB', 'Rock'];
+  static const _drinkOptions = ['Cocktails', 'Bieres', 'Vins', 'Soft'];
 
   @override
   void initState() {
@@ -51,18 +50,18 @@ class _ProfilePageState extends State<ProfilePage> {
           'email': me['email'] ?? userInfo['email'],
           'avatarUrl': me['avatarUrl'] ?? '',
           'phone': me['phone'] ?? '',
-          'preferredAmbiance': List<String>.from(prefs['ambiance'] ?? []),
-          'preferredMusic': List<String>.from(prefs['music'] ?? []),
-          'preferredDrinks': List<String>.from(prefs['drinks'] ?? []),
           'pushNotifications': me['notif_push'] ?? true,
           'emailNotifications': me['notif_email'] ?? false,
-          'priceLevel': me['price_level'] ?? userInfo['priceLevel'],
+          'ambiancePrefs': List<String>.from(prefs['ambiance'] ?? []),
+          'musicPrefs': List<String>.from(prefs['music'] ?? []),
+          'drinkPrefs': List<String>.from(prefs['drinks'] ?? []),
+          'priceLevel': me['price_level']?.toString() ?? userInfo['priceLevel'],
         };
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connecte-toi pour ton profil')),
+          const SnackBar(content: Text('Connecte-toi pour voir ton profil')),
         );
       }
     }
@@ -78,200 +77,264 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6FA),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Profil',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: SingleChildScrollView(
+      backgroundColor: const Color(0xFFF0F0F2),
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              _buildProfilePicture(),
-              const SizedBox(height: 30),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+          padding: const EdgeInsets.all(16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        color: Colors.black,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Profil',
+                        style: TextStyle(
+                          fontSize: 34 / 2,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _buildAvatar(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle('Informations'),
+                  const Divider(height: 20),
+                  _buildEditableRow(
+                    label: 'Prenom',
+                    value: _displayValue(userInfo['firstName']),
+                    field: 'firstName',
+                  ),
+                  _buildEditableRow(
+                    label: 'Numero de telephone',
+                    value: _displayValue(userInfo['phone']),
+                    field: 'phone',
+                  ),
+                  _buildEditableRow(
+                    label: 'Adresse e-mail',
+                    value: _displayValue(userInfo['email']),
+                    field: 'email',
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSectionTitle('Notifications'),
+                  const Divider(height: 20),
+                  _buildActionRow(
+                    label: 'Notifications push',
+                    value: userInfo['pushNotifications'] == true
+                        ? 'Activees'
+                        : 'Desactivees',
+                    onTap: () => _showNotificationSheet(
+                      field: 'pushNotifications',
+                      title: 'Notifications push',
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildSection('Informations', [
-                      _buildInfoItem(
-                          'Prénom', userInfo['firstName'] ?? '', 'firstName'),
-                      _buildInfoItem('Adresse e-mail', userInfo['email'] ?? '',
-                          'email'),
-                      _buildInfoItem('Téléphone', userInfo['phone'] ?? '',
-                          'phone'),
-                      _buildPhoneActions(),
-                    ]),
-                    _buildDivider(),
-                    _buildSection('Préférences Bars & Alcool', [
-                      _buildMultiSelectItem('Ambiance préférée',
-                          List<String>.from(userInfo['preferredAmbiance']), 'preferredAmbiance'),
-                      _buildMultiSelectItem('Musique préférée',
-                          List<String>.from(userInfo['preferredMusic']), 'preferredMusic'),
-                      _buildMultiSelectItem('Boissons préférées',
-                          List<String>.from(userInfo['preferredDrinks']), 'preferredDrinks'),
-                      _buildInfoItem('Niveau de prix',
-                          userInfo['priceLevel']?.toString() ?? '€', 'priceLevel'),
-                    ]),
-                    _buildDivider(),
-                    _buildSection('Notifications', [
-                      _buildToggleItem('Notifications push',
-                          userInfo['pushNotifications'], 'pushNotifications'),
-                      _buildToggleItem('E-mail', userInfo['emailNotifications'],
-                          'emailNotifications'),
-                    ]),
-                    _buildDivider(),
-                    _buildSection('Compte', [
-                      _buildLogoutButton(),
-                    ]),
-                  ],
-                ),
+                  ),
+                  _buildActionRow(
+                    label: 'E-mail',
+                    value: userInfo['emailNotifications'] == true
+                        ? 'Actif'
+                        : 'Desactive',
+                    onTap: () => _showNotificationSheet(
+                      field: 'emailNotifications',
+                      title: 'Notifications e-mail',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSectionTitle('Preferences bars'),
+                  const Divider(height: 20),
+                  _buildActionRow(
+                    label: 'Ambiance preferee',
+                    value: _displayList(userInfo['ambiancePrefs']),
+                    onTap: () => _showMultiChoiceSheet(
+                      title: 'Ambiance preferee',
+                      keyName: 'ambiance',
+                      field: 'ambiancePrefs',
+                      options: _ambianceOptions,
+                    ),
+                  ),
+                  _buildActionRow(
+                    label: 'Musique preferee',
+                    value: _displayList(userInfo['musicPrefs']),
+                    onTap: () => _showMultiChoiceSheet(
+                      title: 'Musique preferee',
+                      keyName: 'music',
+                      field: 'musicPrefs',
+                      options: _musicOptions,
+                    ),
+                  ),
+                  _buildActionRow(
+                    label: 'Boissons preferees',
+                    value: _displayList(userInfo['drinkPrefs']),
+                    onTap: () => _showMultiChoiceSheet(
+                      title: 'Boissons preferees',
+                      keyName: 'drinks',
+                      field: 'drinkPrefs',
+                      options: _drinkOptions,
+                    ),
+                  ),
+                  _buildActionRow(
+                    label: 'Budget par soiree',
+                    value: _displayValue(userInfo['priceLevel']),
+                    onTap: () => _showChoiceDialog(
+                      title: 'Budget prefere',
+                      options: const ['€', '€€', '€€€'],
+                      selectedValue: userInfo['priceLevel']?.toString() ?? '€€',
+                      onSelected: (value) async {
+                        await api.updateProfile(priceLevel: value);
+                        if (!mounted) return;
+                        setState(() => userInfo['priceLevel'] = value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: _showLogoutDialog,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Se deconnecter'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      side: BorderSide(color: Colors.red.shade200),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildProfilePicture() {
-    final initials = (userInfo['firstName'] ?? '')
-        .toString()
-        .trim()
-        .split(' ')
-        .where((p) => p.isNotEmpty)
-        .map((p) => p[0].toUpperCase())
-        .take(2)
-        .join();
+  Widget _buildAvatar() {
     final avatarUrl = (userInfo['avatarUrl'] ?? '').toString();
 
-    return Stack(
-      children: [
-        CircleAvatar(
-          radius: 60,
-          backgroundColor: const Color(0xFFE5E7EB),
-          backgroundImage:
-              avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-          child: avatarUrl.isNotEmpty
-              ? null
-              : (initials.isNotEmpty
-                  ? Text(
-                      initials,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF9B7BFF),
+    return GestureDetector(
+      onTap: _showPhotoOptions,
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: const Color(0xFFE5E7EB),
+            backgroundImage:
+                avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl.isNotEmpty
+                ? null
+                : const Icon(
+                    Icons.person,
+                    color: Color(0xFF9CA3AF),
+                    size: 34,
+                  ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C3AED),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: avatarUploading
+                  ? const Padding(
+                      padding: EdgeInsets.all(5),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
                       ),
                     )
                   : const Icon(
-                      Icons.person,
-                      size: 60,
-                      color: Color(0xFF9B7BFF),
-                    )),
-        ),
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: GestureDetector(
-            onTap: _showPhotoOptions,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFF9B7BFF),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 18,
-              ),
+                      Icons.camera_alt,
+                      size: 14,
+                      color: Colors.white,
+                    ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSection(String title, List<Widget> children) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...children,
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(String label, String value, String field) {
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 36 / 2,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF374151),
+      ),
+    );
+  }
+
+  Widget _buildEditableRow({
+    required String label,
+    required String value,
+    required String field,
+  }) {
+    return _buildActionRow(
+      label: label,
+      value: value,
+      onTap: () =>
+          _showEditDialog(label: label, field: field, currentValue: value),
+    );
+  }
+
+  Widget _buildActionRow({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      onTap: () => _showEditDialog(label, value, field),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF1F2937),
-                    ),
-                  ),
-                ],
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 34 / 2,
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 33 / 2,
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             const Icon(
-              Icons.arrow_forward_ios,
+              Icons.arrow_forward_ios_rounded,
               size: 16,
               color: Color(0xFF9CA3AF),
             ),
@@ -281,106 +344,49 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildToggleItem(String label, bool value, String field) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: (newValue) async {
-              setState(() => userInfo[field] = newValue);
-              try {
-                await api.updateProfile(
-                  notifPush:
-                      field == 'pushNotifications' ? newValue : null,
-                  notifEmail:
-                      field == 'emailNotifications' ? newValue : null,
-                );
-              } catch (_) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Impossible de sauvegarder la préférence')));
-                }
-              }
-            },
-            activeColor: const Color(0xFF9B7BFF),
-          ),
-        ],
-      ),
-    );
+  String _displayValue(dynamic value) {
+    final text = (value ?? '').toString().trim();
+    return text.isEmpty ? 'Non renseigne' : text;
   }
 
-  Widget _buildMultiSelectItem(
-      String label, List<String> values, String field) {
-    return InkWell(
-      onTap: () => _showMultiSelectDialog(label, values, field),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    values.isEmpty ? 'Aucune sélection' : values.join(', '),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF1F2937),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF9CA3AF),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _displayList(dynamic value) {
+    final items = List<String>.from(value ?? const []);
+    if (items.isEmpty) return 'Aucune selection';
+    return items.join(', ');
   }
 
-  Widget _buildDivider() {
-    return Container(
-      height: 1,
-      color: const Color(0xFFE5E7EB),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-    );
+  Map<String, dynamic> _buildPrefsPayload({
+    String? keyName,
+    List<String>? values,
+  }) {
+    final prefs = <String, dynamic>{
+      'ambiance': List<String>.from(userInfo['ambiancePrefs'] ?? const []),
+      'music': List<String>.from(userInfo['musicPrefs'] ?? const []),
+      'drinks': List<String>.from(userInfo['drinkPrefs'] ?? const []),
+    };
+    if (keyName != null && values != null) {
+      prefs[keyName] = values;
+    }
+    return prefs;
   }
 
-  void _showEditDialog(String label, String currentValue, String field) {
-    final controller = TextEditingController(text: currentValue);
+  void _showEditDialog({
+    required String label,
+    required String field,
+    required String currentValue,
+  }) {
+    final controller = TextEditingController(
+      text: currentValue == 'Non renseigne' ? '' : currentValue,
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Modifier '),
+        title: const Text('Modifier'),
         content: TextField(
           controller: controller,
+          keyboardType:
+              field == 'phone' ? TextInputType.phone : TextInputType.text,
           decoration: InputDecoration(
             labelText: label,
             border: const OutlineInputBorder(),
@@ -391,42 +397,36 @@ class _ProfilePageState extends State<ProfilePage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Annuler'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
+              final value = controller.text.trim();
               try {
                 await api.updateProfile(
-                  firstName: field == 'firstName' ? controller.text : null,
-                  email: field == 'email' ? controller.text : null,
-                  phone: field == 'phone' ? controller.text : null,
-                  priceLevel:
-                      field == 'priceLevel' ? controller.text : null,
+                  firstName: field == 'firstName' ? value : null,
+                  email: field == 'email' ? value : null,
+                  phone: field == 'phone' ? value : null,
                 );
-                setState(() {
-                  userInfo[field] = controller.text;
-                });
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(field == 'email'
-                          ? 'Email mis à jour. Vérifie ta boîte mail si la confirmation est requise.'
-                          : 'Information mise à jour'),
+                if (!mounted) return;
+                setState(() => userInfo[field] = value);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      field == 'email'
+                          ? 'Email mise a jour. Verification possible selon la config auth.'
+                          : 'Information mise a jour',
                     ),
-                  );
-                }
+                  ),
+                );
               } catch (_) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Erreur lors de la mise à jour du profil')),
-                  );
-                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Erreur de sauvegarde')),
+                );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9B7BFF),
-              foregroundColor: Colors.white,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
             ),
             child: const Text('Sauvegarder'),
           ),
@@ -435,115 +435,206 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showMultiSelectDialog(
-      String label, List<String> currentValues, String field) {
-    List<String> availableOptions = [];
-    switch (field) {
-      case 'preferredAmbiance':
-        availableOptions = ['Chic', 'Décontracté', 'Festif', 'Cosy'];
-        break;
-      case 'preferredMusic':
-        availableOptions = ['Jazz', 'Pop', 'Rock', 'Électro', 'Hip-Hop'];
-        break;
-      case 'preferredDrinks':
-        availableOptions = ['Cocktails', 'Vin', 'Bière', 'Soft'];
-        break;
-    }
-
-    Map<String, bool> selectedOptions = {
-      for (final option in availableOptions) option: currentValues.contains(option)
-    };
-
-    showDialog(
+  void _showNotificationSheet({
+    required String field,
+    required String title,
+  }) {
+    final current = userInfo[field] == true;
+    showModalBottomSheet(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: Text('Modifier '),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: availableOptions.length,
-              itemBuilder: (context, index) {
-                String option = availableOptions[index];
-                return CheckboxListTile(
-                  title: Text(option),
-                  value: selectedOptions[option] ?? false,
-                  onChanged: (bool? value) {
-                    setStateDialog(() {
-                      selectedOptions[option] = value ?? false;
-                    });
-                  },
-                  activeColor: const Color(0xFF9B7BFF),
-                );
-              },
+      showDragHandle: true,
+      builder: (context) {
+        bool nextValue = current;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SwitchListTile(
+                  value: nextValue,
+                  activeThumbColor: const Color(0xFF7C3AED),
+                  title: const Text('Activer'),
+                  onChanged: (v) => setSheetState(() => nextValue = v),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      try {
+                        await api.updateProfile(
+                          notifPush:
+                              field == 'pushNotifications' ? nextValue : null,
+                          notifEmail:
+                              field == 'emailNotifications' ? nextValue : null,
+                        );
+                        if (!mounted) return;
+                        setState(() => userInfo[field] = nextValue);
+                        Navigator.pop(context);
+                      } catch (_) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Impossible de sauvegarder la preference'),
+                          ),
+                        );
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED),
+                    ),
+                    child: const Text('Enregistrer'),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                List<String> newValues = selectedOptions.entries
-                    .where((entry) => entry.value)
-                    .map((entry) => entry.key)
-                    .toList();
+        );
+      },
+    );
+  }
 
-                setState(() {
-                  userInfo[field] = newValues;
-                });
-                final prefs = {
-                  'ambiance': List<String>.from(userInfo['preferredAmbiance']),
-                  'music': List<String>.from(userInfo['preferredMusic']),
-                  'drinks': List<String>.from(userInfo['preferredDrinks']),
-                };
-                api.updateProfile(prefs: prefs);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Préférences mises à jour')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9B7BFF),
-                foregroundColor: Colors.white,
+  void _showMultiChoiceSheet({
+    required String title,
+    required String keyName,
+    required String field,
+    required List<String> options,
+  }) {
+    final selected = Set<String>.from(userInfo[field] ?? const []);
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              child: const Text('Sauvegarder'),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: options.map((item) {
+                  final active = selected.contains(item);
+                  return FilterChip(
+                    label: Text(item),
+                    selected: active,
+                    selectedColor:
+                        const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                    checkmarkColor: const Color(0xFF7C3AED),
+                    onSelected: (v) => setSheetState(() {
+                      if (v) {
+                        selected.add(item);
+                      } else {
+                        selected.remove(item);
+                      }
+                    }),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      final updated = selected.toList()..sort();
+                      await api.updateProfile(
+                        prefs: _buildPrefsPayload(
+                          keyName: keyName,
+                          values: updated,
+                        ),
+                      );
+                      if (!mounted) return;
+                      setState(() => userInfo[field] = updated);
+                      Navigator.pop(context);
+                    } catch (_) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Impossible de sauvegarder ces preferences'),
+                        ),
+                      );
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                  ),
+                  child: const Text('Enregistrer'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLogoutButton() {
-    return InkWell(
-      onTap: _showLogoutDialog,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
+  void _showChoiceDialog({
+    required String title,
+    required List<String> options,
+    required String selectedValue,
+    required Future<void> Function(String value) onSelected,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.logout,
-              color: Colors.red[600],
-              size: 20,
-            ),
-            const SizedBox(width: 12),
             Text(
-              'Se déconnecter',
-              style: GoogleFonts.poppins(
+              title,
+              style: const TextStyle(
                 fontSize: 16,
-                color: Colors.red[600],
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const Spacer(),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF9CA3AF),
-            ),
+            const SizedBox(height: 8),
+            ...options.map((item) {
+              final selected = selectedValue == item;
+              return ListTile(
+                dense: true,
+                title: Text(item),
+                trailing: selected
+                    ? const Icon(Icons.check, color: Color(0xFF7C3AED))
+                    : null,
+                onTap: () async {
+                  try {
+                    await onSelected(item);
+                  } catch (_) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Erreur de sauvegarde')),
+                    );
+                  }
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                },
+              );
+            }),
           ],
         ),
       ),
@@ -553,21 +644,19 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showPhotoOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Changer la photo de profil',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
+              leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Prendre une photo'),
               onTap: () {
                 Navigator.pop(context);
@@ -575,8 +664,8 @@ class _ProfilePageState extends State<ProfilePage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choisir depuis la galerie'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choisir dans la galerie'),
               onTap: () {
                 Navigator.pop(context);
                 _handleAvatar(ImageSource.gallery);
@@ -592,126 +681,27 @@ class _ProfilePageState extends State<ProfilePage> {
     if (avatarUploading) return;
     setState(() => avatarUploading = true);
     try {
-      final file = await _picker.pickImage(source: source, maxWidth: 800);
+      final file = await _picker.pickImage(source: source, maxWidth: 900);
       if (file == null) {
-        setState(() => avatarUploading = false);
+        if (mounted) setState(() => avatarUploading = false);
         return;
       }
       final bytes = await file.readAsBytes();
-      final url =
-          await api.uploadAvatar(bytes: bytes, fileName: file.name);
-      setState(() {
-        userInfo['avatarUrl'] = url;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo mise à jour')),
-        );
-      }
+      final url = await api.uploadAvatar(bytes: bytes, fileName: file.name);
+      if (!mounted) return;
+      setState(() => userInfo['avatarUrl'] = url);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo mise a jour')),
+      );
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Impossible de téléverser la photo (vérifie le bucket "avatars")')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upload impossible. Verifie le bucket avatars.'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => avatarUploading = false);
-    }
-  }
-
-  Widget _buildPhoneActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone (avec indicatif +33...)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _sendOtp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9B7BFF),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Code'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: otpCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Code OTP reçu',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _verifyOtp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Valider'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Future<void> _sendOtp() async {
-    final phone = phoneCtrl.text.trim();
-    if (phone.isEmpty) return;
-    try {
-      await api.sendPhoneOtp(phone);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Code envoyé par SMS')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Échec de l’envoi du code')),
-        );
-      }
-    }
-  }
-
-  Future<void> _verifyOtp() async {
-    final phone = phoneCtrl.text.trim();
-    final code = otpCtrl.text.trim();
-    if (phone.isEmpty || code.isEmpty) return;
-    try {
-      await api.verifyPhoneOtp(phone: phone, code: code);
-      await api.updateProfile(phone: phone);
-      setState(() => userInfo['phone'] = phone);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Téléphone vérifié')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Code invalide ou expiré')),
-        );
-      }
     }
   }
 
@@ -719,35 +709,25 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Se déconnecter',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Êtes-vous sûr de vouloir vous déconnecter ?',
-          style: GoogleFonts.poppins(),
-        ),
+        title: const Text('Se deconnecter'),
+        content: const Text('Tu veux vraiment te deconnecter ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Annuler'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               await api.logout();
-              if (mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                  (route) => false,
-                );
-              }
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Se déconnecter'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
+            child: const Text('Se deconnecter'),
           ),
         ],
       ),

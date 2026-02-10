@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color lavender = Color(0xFFA78BFA);
-  static const Color lavender2 = Color(0xFFB794F4);
+  // Violet scale inspired by the requested palette variants.
+  static const Color violet950 = Color(0xFF4C1D95);
+  static const Color violet900 = Color(0xFF581C87);
+  static const Color violet800 = Color(0xFF5B21B6);
+  static const Color violet700 = Color(0xFF6B21A8);
+  static const Color violet600 = Color(0xFF7C3AED);
+  static const Color violet500 = Color(0xFF9333EA);
+
+  static const Color lavender = violet600;
+  static const Color lavender2 = violet500;
   static const Color bg = Color(0xFFF6F6FA);
   static const Color text = Color(0xFF1E1E1E);
   static const Color textSecondary = Color(0xFF5B5B66);
@@ -31,7 +39,11 @@ class AppTheme {
   }
 
   static BoxDecoration lavenderGradient({double radius = 12}) => BoxDecoration(
-        gradient: const LinearGradient(colors: [lavender, lavender2]),
+        gradient: const LinearGradient(
+          colors: [violet800, violet700, violet500],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(radius),
         boxShadow: const [
           BoxShadow(
@@ -39,4 +51,3 @@ class AppTheme {
         ],
       );
 }
-

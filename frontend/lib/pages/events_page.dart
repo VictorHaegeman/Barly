@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'event_detail_page.dart';
 
@@ -12,6 +12,7 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   final api = ApiService();
   List<Map<String, dynamic>> events = [];
+  final Set<String> expandedDetails = <String>{};
   bool authed = false;
   bool loading = true;
 
@@ -26,30 +27,40 @@ class _EventsPageState extends State<EventsPage> {
     try {
       final fetched = await api.getEvents();
       events = fetched
-          .map<Map<String, dynamic>>((e) => {
-                ...e as Map<String, dynamic>,
-                'title': (e as Map<String, dynamic>)['title'] ?? 'Événement',
-                'bar': (e as Map<String, dynamic>)['barName'] ??
-                    (e as Map<String, dynamic>)['bar'] ??
-                    'Bar',
-                'date': (e as Map<String, dynamic>)['date']?.toString(),
-                'participants':
-                    (e as Map<String, dynamic>)['participants']?.length ?? 0,
-                'price': 'Gratuit',
-                'type': 'Événement',
-              })
+          .map<Map<String, dynamic>>(
+              (raw) => _normalizeEvent(Map<String, dynamic>.from(raw)))
           .toList();
     } catch (_) {
       events = [];
       if (mounted) {
         final msg = authed
-            ? 'Impossible de charger les événements'
-            : 'Connecte-toi pour voir / créer des événements';
+            ? 'Impossible de charger les evenements'
+            : 'Connecte-toi pour voir / creer des evenements';
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(msg)));
       }
     }
     if (mounted) setState(() => loading = false);
+  }
+
+  Map<String, dynamic> _normalizeEvent(Map<String, dynamic> e) {
+    final participantsRaw = e['participants'];
+    final participantsCount = participantsRaw is List
+        ? participantsRaw.length
+        : (participantsRaw is num ? participantsRaw.toInt() : 0);
+
+    return {
+      ...e,
+      'title': e['title']?.toString() ?? 'Evenement',
+      'bar': e['barName']?.toString() ?? e['bar']?.toString() ?? 'Bar',
+      'date': e['date']?.toString(),
+      'participantsCount': participantsCount,
+      'price': e['price']?.toString() ?? 'Gratuit',
+      'type': e['type']?.toString() ?? 'Evenement',
+      'isPrivate': e['isPrivate'] == true ||
+          e['is_private'] == true ||
+          e['visibility']?.toString().toLowerCase() == 'private',
+    };
   }
 
   @override
@@ -59,12 +70,9 @@ class _EventsPageState extends State<EventsPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF6F6FA),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
-          'Événements',
+          'Evenements',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -72,16 +80,6 @@ class _EventsPageState extends State<EventsPage> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Recherche bientôt dispo')),
-              );
-            },
-          ),
-        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -93,12 +91,12 @@ class _EventsPageState extends State<EventsPage> {
                     padding: const EdgeInsets.all(20),
                     separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemCount: events.length,
-                    itemBuilder: (_, i) => _buildEventCard(events[i]),
+                    itemBuilder: (_, i) => _buildEventCard(events[i], i),
                   ),
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateEventDialog(),
-        backgroundColor: const Color(0xFF9B7BFF),
+        onPressed: _showCreateEventDialog,
+        backgroundColor: const Color(0xFF7C3AED),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
@@ -109,20 +107,30 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.event_busy, size: 64, color: Color(0xFF9B7BFF)),
+          const Icon(Icons.event_busy, size: 64, color: Color(0xFF7C3AED)),
           const SizedBox(height: 16),
           Text(authed
-              ? 'Aucun événement pour le moment'
-              : 'Connecte-toi pour voir / créer des événements'),
+              ? 'Aucun evenement pour le moment'
+              : 'Connecte-toi pour voir / creer des evenements'),
         ],
       ),
     );
   }
 
-  Widget _buildEventCard(Map<String, dynamic> event) {
-    final date = DateTime.tryParse(event['date'] ?? '');
-    final participants = event['participants'] ?? 0;
-    final type = event['type'] ?? 'Événement';
+  Widget _buildEventCard(Map<String, dynamic> event, int index) {
+    final date = DateTime.tryParse(event['date']?.toString() ?? '');
+    final participantsCount = event['participantsCount'] as int? ?? 0;
+    final type = event['type']?.toString() ?? 'Evenement';
+    final isPrivate = event['isPrivate'] == true;
+    final eventKey = _eventKey(event, index);
+    final showDetails = expandedDetails.contains(eventKey);
+    final description =
+        (event['description']?.toString().trim().isNotEmpty ?? false)
+            ? event['description'].toString().trim()
+            : 'Description indisponible pour le moment.';
+    final ctaLabel = isPrivate
+        ? 'Je participe avec un code'
+        : _ctaPriceLabel(event['price']);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -131,7 +139,7 @@ class _EventsPageState extends State<EventsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -141,51 +149,58 @@ class _EventsPageState extends State<EventsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF9B7BFF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF9B7BFF).withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  type,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF9B7BFF),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF10B981).withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  event['price'] ?? 'Gratuit',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF10B981),
-                    fontSize: 12,
-                  ),
-                ),
+              _chipLabel(type, const Color(0xFF7C3AED)),
+              const Spacer(),
+              _chipLabel(
+                isPrivate ? 'Prive' : 'Ouvert',
+                isPrivate ? const Color(0xFFEF4444) : const Color(0xFF10B981),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () {
+                setState(() {
+                  if (showDetails) {
+                    expandedDetails.remove(eventKey);
+                  } else {
+                    expandedDetails.add(eventKey);
+                  }
+                });
+              },
+              child: Text(showDetails ? 'Masquer details' : 'Details'),
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 180),
+            firstChild: const SizedBox.shrink(),
+            secondChild: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4B5563),
+                  height: 1.4,
+                ),
+              ),
+            ),
+            crossFadeState: showDetails
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+          ),
           const SizedBox(height: 16),
           Text(
-            event['title'] ?? 'Événement',
+            event['title']?.toString() ?? 'Evenement',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
@@ -195,52 +210,32 @@ class _EventsPageState extends State<EventsPage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(
-                Icons.location_on,
-                size: 16,
-                color: Color(0xFF6B7280),
-              ),
+              const Icon(Icons.location_on, size: 16, color: Color(0xFF6B7280)),
               const SizedBox(width: 4),
               Text(
-                event['bar'] ?? 'Bar',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                event['bar']?.toString() ?? 'Bar',
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(
-                Icons.calendar_today,
-                size: 16,
-                color: Color(0xFF6B7280),
-              ),
+              const Icon(Icons.calendar_today,
+                  size: 16, color: Color(0xFF6B7280)),
               const SizedBox(width: 4),
               Text(
                 date != null
-                    ? '${date.day}/${date.month} à ${date.hour}h${date.minute.toString().padLeft(2, '0')}'
-                    : 'Date non définie',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                    ? '${date.day}/${date.month} a ${date.hour}h${date.minute.toString().padLeft(2, '0')}'
+                    : 'Date non definie',
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
               const SizedBox(width: 16),
-              const Icon(
-                Icons.people,
-                size: 16,
-                color: Color(0xFF6B7280),
-              ),
+              const Icon(Icons.people, size: 16, color: Color(0xFF6B7280)),
               const SizedBox(width: 4),
               Text(
-                '$participants participants',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                '$participantsCount participants',
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
             ],
           ),
@@ -248,58 +243,72 @@ class _EventsPageState extends State<EventsPage> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _joinEvent(event),
+              onPressed: () => _openEventDetail(event, focusJoin: true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9B7BFF),
+                backgroundColor: const Color(0xFF7C3AED),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Je participe',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
+              child: Text(
+                ctaLabel,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EventDetailPage(event: event),
-              ),
-            ),
-            child: const Text('Détails'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _joinEvent(Map<String, dynamic> event) async {
-    try {
-      final id = event['id']?.toString() ?? event['_id'];
-      await api.joinEvent(id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Inscription envoyée !'),
-          backgroundColor: Color(0xFF10B981),
+  Widget _chipLabel(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
         ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erreur lors de l\'inscription'),
-          backgroundColor: Color(0xFFEF4444),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: color,
+          fontSize: 12,
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  String _ctaPriceLabel(dynamic price) {
+    final value = (price ?? '').toString().trim();
+    if (value.isEmpty) return 'Gratuit';
+    if (value.toLowerCase() == 'free') return 'Gratuit';
+    return value;
+  }
+
+  String _eventKey(Map<String, dynamic> event, int index) {
+    final id = event['id']?.toString();
+    if (id != null && id.isNotEmpty) return id;
+    return '$index-${event['title']}-${event['date']}-${event['bar']}';
+  }
+
+  Future<void> _openEventDetail(Map<String, dynamic> event,
+      {bool focusJoin = false}) async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            EventDetailPage(event: event, focusJoinAction: focusJoin),
+      ),
+    );
+    _load();
   }
 
   void _showCreateEventDialog() {
@@ -311,7 +320,7 @@ class _EventsPageState extends State<EventsPage> {
 
   void _onCreated(Map<String, dynamic> event) {
     setState(() {
-      events.insert(0, event);
+      events.insert(0, _normalizeEvent(event));
     });
   }
 }
@@ -330,11 +339,18 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   DateTime date = DateTime.now().add(const Duration(days: 1));
   String? barId;
   String eventType = 'Musique';
+  bool isPrivate = false;
   final api = ApiService();
   List<Map<String, dynamic>> bars = [];
   bool loading = true;
 
-  final eventTypes = ['Musique', 'Concert', 'Dégustation', 'Soirée', 'Autre'];
+  final eventTypes = const [
+    'Musique',
+    'Concert',
+    'Degustation',
+    'Soiree',
+    'Autre'
+  ];
 
   @override
   void initState() {
@@ -345,8 +361,12 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   Future<void> _loadBars() async {
     try {
       final fetched = await api.getBars();
-      bars = fetched.map<Map<String, dynamic>>((b) => Map<String, dynamic>.from(b as Map)).toList();
-      if (bars.isNotEmpty) barId = bars.first['id']?.toString() ?? bars.first['_id']?.toString();
+      bars = fetched
+          .map<Map<String, dynamic>>((b) => Map<String, dynamic>.from(b))
+          .toList();
+      if (bars.isNotEmpty) {
+        barId = bars.first['id']?.toString() ?? bars.first['_id']?.toString();
+      }
     } catch (_) {
       bars = [];
     }
@@ -356,8 +376,14 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Dialog(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+      return const Dialog(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -367,7 +393,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Créer un événement',
+              'Creer un evenement',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -378,7 +404,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
             TextField(
               controller: titleCtrl,
               decoration: const InputDecoration(
-                labelText: 'Titre de l\'événement',
+                labelText: 'Titre de l evenement',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -393,19 +419,34 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: eventType,
+              initialValue: eventType,
               decoration: const InputDecoration(
-                labelText: 'Type d\'événement',
+                labelText: 'Type d evenement',
                 border: OutlineInputBorder(),
               ),
-              items: eventTypes.map((type) {
-                return DropdownMenuItem(value: type, child: Text(type));
-              }).toList(),
-              onChanged: (value) => setState(() => eventType = value!),
+              items: eventTypes
+                  .map((type) =>
+                      DropdownMenuItem(value: type, child: Text(type)))
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => eventType = value ?? eventType),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<bool>(
+              initialValue: isPrivate,
+              decoration: const InputDecoration(
+                labelText: 'Visibilite',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: false, child: Text('Ouvert')),
+                DropdownMenuItem(value: true, child: Text('Prive')),
+              ],
+              onChanged: (value) => setState(() => isPrivate = value ?? false),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: barId,
+              initialValue: barId,
               decoration: const InputDecoration(
                 labelText: 'Bar',
                 border: OutlineInputBorder(),
@@ -417,7 +458,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
                   child: Text(bar['name']?.toString() ?? 'Bar'),
                 );
               }).toList(),
-              onChanged: (value) => setState(() => barId = value!),
+              onChanged: (value) => setState(() => barId = value),
             ),
             const SizedBox(height: 20),
             Row(
@@ -431,10 +472,10 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
                 ElevatedButton(
                   onPressed: _createEvent,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9B7BFF),
+                    backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Créer'),
+                  child: const Text('Creer'),
                 ),
               ],
             ),
@@ -447,30 +488,39 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   Future<void> _createEvent() async {
     if (!api.isAuthenticated) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Connecte-toi pour créer un événement')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Connecte-toi pour creer un evenement')),
+        );
       }
       return;
     }
-    if (titleCtrl.text.isEmpty || barId == null) return;
+    if (titleCtrl.text.trim().isEmpty || barId == null) return;
 
     try {
       final created = await api.createEvent(
-          barId: barId!,
-          title: titleCtrl.text,
-          date: date.toIso8601String(),
-          type: eventType);
+        barId: barId!,
+        title: titleCtrl.text.trim(),
+        date: date.toIso8601String(),
+        type: eventType,
+        isPrivate: isPrivate,
+      );
+      final barName = bars
+          .firstWhere((b) =>
+              (b['id']?.toString() ?? b['_id']?.toString()) == barId)['name']
+          .toString();
       final event = {
         ...created,
-        'bar': bars.firstWhere((b) => (b['id']?.toString() ?? b['_id']?.toString()) == barId)['name'],
-        'participants': (created['participants'] as List?)?.length ?? 0,
+        'bar': barName,
+        'description': descriptionCtrl.text.trim(),
+        'participantsCount': (created['participants'] as List?)?.length ?? 0,
+        'isPrivate': isPrivate,
       };
       widget.onCreated(event);
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Événement créé !'),
+          content: Text('Evenement cree'),
           backgroundColor: Color(0xFF10B981),
         ),
       );
@@ -478,7 +528,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Erreur lors de la création'),
+          content: Text('Erreur lors de la creation'),
           backgroundColor: Color(0xFFEF4444),
         ),
       );

@@ -1,8 +1,7 @@
 /// Renseigne tes clés Supabase via --dart-define.
 /// En production, toujours utiliser les variables d'environnement.
 class SupabaseOptions {
-  static const url =
-      String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+  static const url = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
   static const anonKey =
       String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
 

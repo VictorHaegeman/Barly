@@ -6,13 +6,13 @@ import 'pages/home_page.dart';
 import 'pages/map_page.dart';
 import 'pages/events_page.dart';
 import 'pages/profile_page.dart';
-import 'pages/boosts_page.dart';
 import 'services/api_service.dart';
 import 'services/supabase_service.dart';
 import 'services/push_service.dart';
 import 'config/supabase_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'widgets/barly_logo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,8 +26,8 @@ Future<void> main() async {
             'Définis SUPABASE_URL et SUPABASE_ANON_KEY via --dart-define ou dans lib/config/supabase_options.dart');
   }
   await SupabaseService.init(url: url, anonKey: key);
-  // FCM : on n'initialise que sur mobile et seulement si Firebase est configuré.
-  const enablePush = false; // passe à true quand google-services.json / GoogleService-Info.plist sont en place
+  // FCM : activable via --dart-define=ENABLE_PUSH=true
+  const enablePush = bool.fromEnvironment('ENABLE_PUSH', defaultValue: false);
   if (!kIsWeb && enablePush) {
     try {
       await PushService.init();
@@ -53,7 +53,6 @@ class BarlyApp extends StatelessWidget {
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
         '/map': (_) => const MapPage(),
-        '/boosts': (_) => const BoostsPage(),
         '/home': (_) => const MainTabs(),
       },
     );
@@ -93,23 +92,19 @@ class _SplashGateState extends State<SplashGate> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.local_bar,
-              size: 80,
-              color: Color(0xFF9B7BFF),
-            ),
+            BarlyLogo(size: 96),
             SizedBox(height: 20),
             Text(
               'Barly',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF9B7BFF),
+                color: Color(0xFF7C3AED),
               ),
             ),
             SizedBox(height: 10),
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9B7BFF)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
             ),
           ],
         ),
@@ -155,12 +150,6 @@ class _MainTabsState extends State<MainTabs> {
               label: 'Profil'),
         ],
       ),
-      floatingActionButton: index == 0
-          ? FloatingActionButton.extended(
-              onPressed: () => Navigator.pushNamed(context, '/boosts'),
-              label: const Text('Boosts'),
-              icon: const Icon(Icons.bolt))
-          : null,
     );
   }
 }

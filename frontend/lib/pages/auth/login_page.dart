@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/barly_button.dart';
+import '../../widgets/barly_logo.dart';
 import '../../theme/app_theme.dart';
 
 class LoginPage extends StatefulWidget {
@@ -69,20 +70,10 @@ class _LoginPageState extends State<LoginPage>
                     child: Column(
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [
-                              AppTheme.lavender,
-                              AppTheme.lavender2
-                            ]),
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                          child: const Icon(
-                            Icons.local_bar,
-                            color: Colors.white,
-                            size: 40,
-                          ),
+                          width: 96,
+                          height: 96,
+                          alignment: Alignment.center,
+                          child: const BarlyLogo(size: 74),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -245,7 +236,8 @@ class _LoginPageState extends State<LoginPage>
 
     if (!emailValid || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email invalide ou mot de passe manquant')),
+        const SnackBar(
+            content: Text('Email invalide ou mot de passe manquant')),
       );
       return;
     }

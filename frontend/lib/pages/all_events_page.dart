@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -43,7 +43,8 @@ class _AllEventsPageState extends State<AllEventsPage> {
       events = [];
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connecte-toi pour voir les événements')),
+          const SnackBar(
+              content: Text('Connecte-toi pour voir les événements')),
         );
       }
     }
@@ -193,9 +194,7 @@ class _AllEventsPageState extends State<AllEventsPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        date != null
-                            ? '/ à h'
-                            : 'Date inconnue',
+                        date != null ? '/ à h' : 'Date inconnue',
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: AppTheme.textSecondary,

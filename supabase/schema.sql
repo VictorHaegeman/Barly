@@ -33,10 +33,15 @@ create table if not exists public.events (
   title text not null,
   date timestamptz,
   type text,
+  is_private boolean default false,
   participants uuid[] default '{}',
   created_by uuid references auth.users,
   created_at timestamptz default now()
 );
+
+-- Compatibilite schema existant
+alter table public.events
+  add column if not exists is_private boolean default false;
 
 create table if not exists public.favorites (
   user_id uuid references auth.users on delete cascade,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -81,7 +81,8 @@ class _BarDetailPageState extends State<BarDetailPage> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text('Fonctionnalité de partage bientôt disponible')),
+                        content: Text(
+                            'Fonctionnalité de partage bientôt disponible')),
                   );
                 },
               ),
@@ -171,7 +172,8 @@ class _BarDetailPageState extends State<BarDetailPage> {
                       ],
                     ),
                   const SizedBox(height: 16),
-                  _chipSection('Ambiance', List<String>.from(bar['ambiance'] ?? [])),
+                  _chipSection(
+                      'Ambiance', List<String>.from(bar['ambiance'] ?? [])),
                   const SizedBox(height: 20),
                   _descriptionSection(),
                   const SizedBox(height: 20),
@@ -247,7 +249,8 @@ class _BarDetailPageState extends State<BarDetailPage> {
             runSpacing: 8,
             children: chips
                 .map((c) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppTheme.lavender.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
@@ -338,10 +341,13 @@ class _BarDetailPageState extends State<BarDetailPage> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.access_time, 'Horaires', bar['hours'] ?? '18h - 2h'),
-          _buildInfoRow(Icons.location_on, 'Adresse', bar['address'] ?? 'Adresse inconnue'),
+          _buildInfoRow(
+              Icons.access_time, 'Horaires', bar['hours'] ?? '18h - 2h'),
+          _buildInfoRow(Icons.location_on, 'Adresse',
+              bar['address'] ?? 'Adresse inconnue'),
           _buildInfoRow(Icons.phone, 'Téléphone', bar['phone'] ?? 'N/C'),
-          _buildInfoRow(Icons.euro, 'Niveau de prix', bar['priceLevel'] ?? '€€'),
+          _buildInfoRow(
+              Icons.euro, 'Niveau de prix', bar['priceLevel'] ?? '€€'),
         ],
       ),
     );

@@ -44,4 +44,3 @@ class _BarlyButtonState extends State<BarlyButton>
     return btn;
   }
 }
-

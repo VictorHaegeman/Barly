@@ -1,9 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/api_service.dart';
 import '../widgets/simple_map_widget.dart';
 import '../config/google_maps_config.dart';
+import 'bar_detail_page.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -54,33 +55,34 @@ class _MapPageState extends State<MapPage> {
       backgroundColor: const Color(0xFFF6F6FA),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: _buildToggle(),
-                ),
-                Expanded(
-                  child: isMapView ? _buildMapView() : _buildListView(),
-                ),
-              ],
+          : SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 22),
+                  _buildToggle(),
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: isMapView ? _buildMapView() : _buildListView(),
+                  ),
+                ],
+              ),
             ),
-      floatingActionButton: loading
+      floatingActionButton: loading || !isMapView
           ? null
           : Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 FloatingActionButton(
                   onPressed: _showCreateBarDialog,
-                  backgroundColor: const Color(0xFF9B7BFF),
+                  backgroundColor: const Color(0xFF7C3AED),
                   child: const Icon(Icons.add, color: Colors.white),
                 ),
                 const SizedBox(height: 16),
                 FloatingActionButton(
                   onPressed: _getCurrentLocation,
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.my_location, color: Color(0xFF9B7BFF)),
+                  child:
+                      const Icon(Icons.my_location, color: Color(0xFF7C3AED)),
                 ),
               ],
             ),
@@ -90,12 +92,12 @@ class _MapPageState extends State<MapPage> {
   Widget _buildToggle() {
     return Center(
       child: Container(
-        width: 180,
-        height: 36,
-        padding: const EdgeInsets.all(2),
+        width: 270,
+        height: 52,
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(26),
           border: Border.all(color: Colors.black, width: 1),
           boxShadow: [
             BoxShadow(
@@ -114,19 +116,18 @@ class _MapPageState extends State<MapPage> {
                   duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
                     color: isMapView
-                        ? const Color(0xFF9B7BFF)
+                        ? const Color(0xFF7C3AED)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: Center(
                     child: Text(
                       'Carte',
                       style: TextStyle(
-                        color: isMapView
-                            ? Colors.white
-                            : const Color(0xFF6B7280),
+                        color:
+                            isMapView ? Colors.white : const Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 30 / 2,
                       ),
                     ),
                   ),
@@ -140,19 +141,18 @@ class _MapPageState extends State<MapPage> {
                   duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
                     color: !isMapView
-                        ? const Color(0xFF9B7BFF)
+                        ? const Color(0xFF7C3AED)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: Center(
                     child: Text(
                       'Liste',
                       style: TextStyle(
-                        color: !isMapView
-                            ? Colors.white
-                            : const Color(0xFF6B7280),
+                        color:
+                            !isMapView ? Colors.white : const Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 30 / 2,
                       ),
                     ),
                   ),
@@ -176,15 +176,18 @@ class _MapPageState extends State<MapPage> {
     final markers = bars.where((b) => b['geo'] != null).map((bar) {
       final coords = bar['geo']['coordinates'];
       return Marker(
-        markerId: MarkerId(bar['id']?.toString() ?? bar['_id']?.toString() ?? ''),
-        position: LatLng((coords[1] as num).toDouble(), (coords[0] as num).toDouble()),
+        markerId:
+            MarkerId(bar['id']?.toString() ?? bar['_id']?.toString() ?? ''),
+        position: LatLng(
+            (coords[1] as num).toDouble(), (coords[0] as num).toDouble()),
         infoWindow: InfoWindow(title: bar['name']?.toString() ?? 'Bar'),
       );
     }).toSet();
 
     final first = markers.isNotEmpty
         ? markers.first.position
-        : const LatLng(GoogleMapsConfig.defaultLatitude, GoogleMapsConfig.defaultLongitude);
+        : const LatLng(GoogleMapsConfig.defaultLatitude,
+            GoogleMapsConfig.defaultLongitude);
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(target: first, zoom: 13),
@@ -199,90 +202,81 @@ class _MapPageState extends State<MapPage> {
     if (bars.isEmpty) {
       return const Center(child: Text('Aucun bar'));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       itemCount: bars.length,
+      separatorBuilder: (context, index) => const Divider(height: 30),
       itemBuilder: (context, index) {
         final bar = bars[index];
-        final imageUrl = bar['imageUrl'] as String?;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
+        final imageUrl = (bar['imageUrl'] ?? bar['coverImage'])?.toString();
+        final ambiance = List<String>.from(bar['ambiance'] ?? []);
+        final music = List<String>.from(bar['music'] ?? []);
+        final description = (bar['description'] ?? '').toString().trim();
+        final subtitle = description.isNotEmpty
+            ? description
+            : [
+                if (ambiance.isNotEmpty) 'Ambiance ${ambiance.join(', ')}',
+                if (music.isNotEmpty) 'Musique ${music.join(', ')}',
+              ].join(' — ');
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BarDetailPage(bar: bar),
               ),
-            ],
-          ),
+            );
+          },
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  image: imageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(imageUrl),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  width: 84,
+                  height: 84,
+                  color: const Color(0xFFE9E9EE),
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
                           fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {},
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.local_bar,
+                            color: Color(0xFF7C3AED),
+                          ),
                         )
-                      : null,
+                      : const Icon(
+                          Icons.local_bar,
+                          color: Color(0xFF7C3AED),
+                        ),
                 ),
-                child: imageUrl == null
-                    ? const Icon(
-                        Icons.local_bar,
-                        color: Color(0xFF9B7BFF),
-                        size: 40,
-                      )
-                    : null,
               ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.only(top: 2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        bar['name'] as String? ?? 'Bar',
+                        bar['name']?.toString() ?? 'Bar',
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 32 / 2,
+                          fontWeight: FontWeight.w700,
                           color: Color(0xFF1F2937),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 7),
                       Text(
-                        (bar['ambiance'] ?? []).join(', '),
+                        subtitle.isNotEmpty ? subtitle : 'Bar à découvrir',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 24 / 2,
                           color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          bar['priceLevel']?.toString() ?? '€',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF10B981),
-                          ),
+                          height: 1.3,
                         ),
                       ),
                     ],
@@ -367,7 +361,7 @@ class _MapPageState extends State<MapPage> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9B7BFF),
+              backgroundColor: const Color(0xFF7C3AED),
               foregroundColor: Colors.white,
             ),
             child: const Text('Ajouter'),

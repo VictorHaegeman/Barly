@@ -37,7 +37,7 @@ class SimpleMapWidget extends StatelessWidget {
                   Icon(
                     Icons.map,
                     size: 60,
-                    color: const Color(0xFF9B7BFF).withOpacity(0.3),
+                    color: const Color(0xFF7C3AED).withOpacity(0.3),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -113,7 +113,7 @@ class SimpleMapWidget extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF9B7BFF),
+                          color: Color(0xFF7C3AED),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -161,7 +161,7 @@ class SimpleMapWidget extends StatelessWidget {
               width: 24,
               height: 24,
               decoration: const BoxDecoration(
-                color: Color(0xFF9B7BFF),
+                color: Color(0xFF7C3AED),
                 shape: BoxShape.circle,
               ),
               child: const Icon(

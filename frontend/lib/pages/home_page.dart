@@ -1,4 +1,4 @@
-﻿import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'bar_detail_page.dart';
@@ -37,17 +37,15 @@ class _HomePageState extends State<HomePage> {
     await _loadMe();
     try {
       final fetchedBars = await api.getBars();
-      bars = fetchedBars
-          .map<Map<String, dynamic>>((raw) {
-            final b = Map<String, dynamic>.from(raw as Map);
-            return {
-              ...b,
-              'imageUrl': b['coverImage'] ??
-                  'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
-              'pintPrice': b['pintPrice'] ?? '€€',
-            };
-          })
-          .toList();
+      bars = fetchedBars.map<Map<String, dynamic>>((raw) {
+        final b = Map<String, dynamic>.from(raw as Map);
+        return {
+          ...b,
+          'imageUrl': b['coverImage'] ??
+              'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
+          'pintPrice': b['pintPrice'] ?? '€€',
+        };
+      }).toList();
     } catch (_) {
       bars = [];
       if (mounted) {
@@ -93,8 +91,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final me = await api.getMe();
       if (me != null) {
-        preferences =
-            Map<String, dynamic>.from(me['prefs'] ?? preferences);
+        preferences = Map<String, dynamic>.from(me['prefs'] ?? preferences);
         prefPrice = me['price_level']?.toString();
       }
     } catch (_) {
@@ -106,29 +103,33 @@ class _HomePageState extends State<HomePage> {
     final prefAmb = List<String>.from(preferences['ambiance'] ?? []);
     final prefMusic = List<String>.from(preferences['music'] ?? []);
     final prefDrinks = List<String>.from(preferences['drinks'] ?? []);
-    if (bars.isEmpty || (prefAmb.isEmpty && prefMusic.isEmpty && prefDrinks.isEmpty)) return [];
+    if (bars.isEmpty ||
+        (prefAmb.isEmpty && prefMusic.isEmpty && prefDrinks.isEmpty)) return [];
 
-    final scored = bars.map<Map<String, dynamic>>((bar) {
-      final amb = List<String>.from(bar['ambiance'] ?? []);
-      final music = List<String>.from(bar['music'] ?? []);
-      int score = 0;
-      for (final a in amb) {
-        if (prefAmb.contains(a)) score += 3;
-      }
-      for (final m in music) {
-        if (prefMusic.contains(m)) score += 2;
-      }
-      for (final d in List<String>.from(bar['drinks'] ?? [])) {
-        if (prefDrinks.contains(d)) score += 1;
-      }
-      if (prefPrice != null && bar['priceLevel'] == prefPrice) score += 1;
-      // léger bonus si un rating existe
-      if (bar['rating'] != null) {
-        final r = double.tryParse(bar['rating'].toString()) ?? 0;
-        score += r.round();
-      }
-      return {...bar, '_score': score};
-    }).where((b) => (b['_score'] as int) > 0).toList();
+    final scored = bars
+        .map<Map<String, dynamic>>((bar) {
+          final amb = List<String>.from(bar['ambiance'] ?? []);
+          final music = List<String>.from(bar['music'] ?? []);
+          int score = 0;
+          for (final a in amb) {
+            if (prefAmb.contains(a)) score += 3;
+          }
+          for (final m in music) {
+            if (prefMusic.contains(m)) score += 2;
+          }
+          for (final d in List<String>.from(bar['drinks'] ?? [])) {
+            if (prefDrinks.contains(d)) score += 1;
+          }
+          if (prefPrice != null && bar['priceLevel'] == prefPrice) score += 1;
+          // léger bonus si un rating existe
+          if (bar['rating'] != null) {
+            final r = double.tryParse(bar['rating'].toString()) ?? 0;
+            score += r.round();
+          }
+          return {...bar, '_score': score};
+        })
+        .where((b) => (b['_score'] as int) > 0)
+        .toList();
 
     scored.sort((a, b) => (b['_score'] as int).compareTo(a['_score'] as int));
     return scored.take(5).toList();
@@ -152,7 +153,7 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.thumb_up, size: 14, color: Color(0xFF9B7BFF)),
+          const Icon(Icons.thumb_up, size: 14, color: Color(0xFF7C3AED)),
           const SizedBox(width: 4),
           Text('Match $score', style: const TextStyle(fontSize: 12)),
         ],
@@ -170,7 +171,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text(
           'Barly',
           style: TextStyle(
-            color: Color(0xFF9B7BFF),
+            color: Color(0xFF7C3AED),
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
@@ -192,13 +193,13 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHero(),
+                    const SizedBox(height: 8),
                     if (recommended.isNotEmpty) ...[
-                    _sectionHeader(
-                      title: 'Fait pour vous',
-                      action: 'Voir tout',
-                      onTap: () => Navigator.push(
-                        context,
+                      _sectionHeader(
+                        title: 'Fait pour vous',
+                        action: 'Voir tout',
+                        onTap: () => Navigator.push(
+                          context,
                           MaterialPageRoute(
                             builder: (context) => const AllBarsPage(),
                           ),
@@ -248,8 +249,8 @@ class _HomePageState extends State<HomePage> {
                           icon: const Icon(Icons.add),
                           label: const Text('Ajouter un bar'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF9B7BFF),
-                            side: const BorderSide(color: Color(0xFF9B7BFF)),
+                            foregroundColor: const Color(0xFF7C3AED),
+                            side: const BorderSide(color: Color(0xFF7C3AED)),
                           ),
                         ),
                       ),
@@ -290,8 +291,7 @@ class _HomePageState extends State<HomePage> {
                       )
                     else
                       ...events.map((event) => Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: _buildEventCard(event),
                           )),
                     const SizedBox(height: 20),
@@ -302,66 +302,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHero() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF9B7BFF), Color(0xFF8B5CF6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF9B7BFF).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Salut ! 👋',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Découvre les meilleurs bars et événements près de chez toi',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/map'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF9B7BFF),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Explorer',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader({required String title, required String action, required VoidCallback onTap}) {
+  Widget _sectionHeader(
+      {required String title,
+      required String action,
+      required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -379,7 +323,7 @@ class _HomePageState extends State<HomePage> {
             onPressed: onTap,
             child: Text(
               action,
-              style: const TextStyle(color: Color(0xFF9B7BFF)),
+              style: const TextStyle(color: Color(0xFF7C3AED)),
             ),
           ),
         ],
@@ -448,13 +392,13 @@ class _HomePageState extends State<HomePage> {
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 80,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF9B7BFF).withOpacity(0.1),
+                      color: const Color(0xFF7C3AED).withOpacity(0.1),
                     ),
                     child: const Center(
                       child: Icon(
                         Icons.local_bar,
                         size: 40,
-                        color: Color(0xFF9B7BFF),
+                        color: Color(0xFF7C3AED),
                       ),
                     ),
                   ),
@@ -544,12 +488,12 @@ class _HomePageState extends State<HomePage> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF9B7BFF).withOpacity(0.1),
+              color: const Color(0xFF7C3AED).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.event,
-              color: Color(0xFF9B7BFF),
+              color: Color(0xFF7C3AED),
               size: 24,
             ),
           ),
@@ -586,9 +530,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      date != null
-                          ? '${date.day}/${date.month}'
-                          : 'Date',
+                      date != null ? '${date.day}/${date.month}' : 'Date',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF6B7280),
@@ -762,7 +704,7 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
                 ElevatedButton(
                   onPressed: loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9B7BFF),
+                    backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
                   ),
                   child: loading

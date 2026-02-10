@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -48,7 +48,8 @@ class _AllBarsPageState extends State<AllBarsPage> {
 
   List<Map<String, dynamic>> get filteredBars {
     return bars.where((bar) {
-      final ambOk = filterAmbiance == null || (bar['ambiance'] ?? []).contains(filterAmbiance);
+      final ambOk = filterAmbiance == null ||
+          (bar['ambiance'] ?? []).contains(filterAmbiance);
       final priceOk = filterPrice == null || bar['priceLevel'] == filterPrice;
       return ambOk && priceOk;
     }).toList();
@@ -59,7 +60,8 @@ class _AllBarsPageState extends State<AllBarsPage> {
       }.toList();
 
   List<String> get priceLevels => {
-        for (final b in bars) if (b['priceLevel'] != null) b['priceLevel'].toString()
+        for (final b in bars)
+          if (b['priceLevel'] != null) b['priceLevel'].toString()
       }.toList();
 
   @override
@@ -114,18 +116,26 @@ class _AllBarsPageState extends State<AllBarsPage> {
           Expanded(
             child: DropdownButtonFormField<String>(
               value: filterAmbiance,
-              decoration: const InputDecoration(labelText: 'Ambiance', border: OutlineInputBorder()),
-              items: ambiances.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
-              onChanged: (v) => setState(() => filterAmbiance = v?.isEmpty == true ? null : v),
+              decoration: const InputDecoration(
+                  labelText: 'Ambiance', border: OutlineInputBorder()),
+              items: ambiances
+                  .map((a) => DropdownMenuItem(value: a, child: Text(a)))
+                  .toList(),
+              onChanged: (v) => setState(
+                  () => filterAmbiance = v?.isEmpty == true ? null : v),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
               value: filterPrice,
-              decoration: const InputDecoration(labelText: 'Prix', border: OutlineInputBorder()),
-              items: priceLevels.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-              onChanged: (v) => setState(() => filterPrice = v?.isEmpty == true ? null : v),
+              decoration: const InputDecoration(
+                  labelText: 'Prix', border: OutlineInputBorder()),
+              items: priceLevels
+                  .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                  .toList(),
+              onChanged: (v) =>
+                  setState(() => filterPrice = v?.isEmpty == true ? null : v),
             ),
           ),
           IconButton(

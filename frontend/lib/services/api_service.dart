@@ -76,8 +76,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getBar(String id) async {
-    final row =
-        await client.from('bars').select().eq('id', id).maybeSingle();
+    final row = await client.from('bars').select().eq('id', id).maybeSingle();
     if (row == null) throw Exception('Bar introuvable');
     final map = Map<String, dynamic>.from(row);
     return {
@@ -93,11 +92,22 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getEvents() async {
-    final rows = await client
-        .from('events')
-        .select(
-            'id,title,date,participants,type,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
-        .order('date');
+    List<dynamic> rows;
+    try {
+      rows = await client
+          .from('events')
+          .select(
+              'id,title,date,participants,type,is_private,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
+          .order('date');
+    } catch (_) {
+      // Compatibilite si la colonne is_private n'existe pas encore.
+      rows = await client
+          .from('events')
+          .select(
+              'id,title,date,participants,type,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
+          .order('date');
+    }
+
     return rows.map<Map<String, dynamic>>((e) {
       final map = Map<String, dynamic>.from(e as Map);
       final bar = Map<String, dynamic>.from(map['bar'] ?? {});
@@ -110,8 +120,9 @@ class ApiService {
         'bar_id': map['bar_id'],
         'participants': participants,
         'price': 'Gratuit',
-        'type': map['type'] ?? 'Événement',
+        'type': map['type'] ?? 'Evenement',
         'date': map['date']?.toString(),
+        'isPrivate': map['is_private'] == true,
       };
     }).toList();
   }
@@ -144,17 +155,30 @@ class ApiService {
     required String title,
     required String date,
     String? type,
+    bool isPrivate = false,
   }) async {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
-    final insert = await client.from('events').insert({
+
+    final payload = {
       'bar_id': barId,
       'title': title,
       'date': date,
       'participants': [user.id],
-      'type': type ?? 'Événement',
+      'type': type ?? 'Evenement',
       'created_by': user.id,
-    }).select().single();
+      'is_private': isPrivate,
+    };
+
+    dynamic insert;
+    try {
+      insert = await client.from('events').insert(payload).select().single();
+    } catch (_) {
+      // Compatibilite si la colonne is_private n'existe pas encore.
+      payload.remove('is_private');
+      insert = await client.from('events').insert(payload).select().single();
+    }
+
     return Map<String, dynamic>.from(insert);
   }
 
@@ -168,8 +192,7 @@ class ApiService {
     return {
       'id': user.id,
       'email': user.email,
-      'firstName':
-          profile?['first_name'] ?? user.userMetadata?['first_name'],
+      'firstName': profile?['first_name'] ?? user.userMetadata?['first_name'],
       'avatarUrl': profile?['avatar_url'],
       'phone': profile?['phone'],
       'prefs': prefs,
@@ -232,7 +255,8 @@ class ApiService {
     await client.auth.signInWithOtp(phone: phone);
   }
 
-  Future<void> verifyPhoneOtp({required String phone, required String code}) async {
+  Future<void> verifyPhoneOtp(
+      {required String phone, required String code}) async {
     await client.auth.verifyOTP(
       token: code,
       type: OtpType.sms,
