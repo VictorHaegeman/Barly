@@ -51,6 +51,15 @@ alter table public.favorites enable row level security;
 alter table public.users enable row level security;
 
 -- Policies
+drop policy if exists "bars read" on public.bars;
+drop policy if exists "bars insert auth" on public.bars;
+drop policy if exists "events read" on public.events;
+drop policy if exists "events insert auth" on public.events;
+drop policy if exists "events update auth" on public.events;
+drop policy if exists "favorites by owner" on public.favorites;
+drop policy if exists "users select self" on public.users;
+drop policy if exists "users insert self" on public.users;
+drop policy if exists "users update self" on public.users;
 create policy "bars read" on public.bars for select using (true);
 create policy "bars insert auth" on public.bars for insert with check (auth.role() = 'authenticated');
 create policy "events read" on public.events for select using (true);
