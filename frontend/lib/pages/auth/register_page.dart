@@ -234,18 +234,22 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   Future<void> _register() async {
-    if (firstCtrl.text.isEmpty ||
-        emailCtrl.text.isEmpty ||
-        passCtrl.text.isEmpty) {
+    final email = emailCtrl.text.trim();
+    final password = passCtrl.text;
+    final first = firstCtrl.text.trim();
+    final emailValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+    if (first.isEmpty || !emailValid || password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+        const SnackBar(
+            content: Text(
+                'Prénom requis, email valide, mot de passe ≥ 6 caractères')),
       );
       return;
     }
 
     setState(() => loading = true);
     try {
-      await api.register(firstCtrl.text, emailCtrl.text, passCtrl.text, prefs);
+      await api.register(first, email, password, prefs);
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } catch (e) {

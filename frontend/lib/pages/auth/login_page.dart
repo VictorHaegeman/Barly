@@ -239,16 +239,20 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Future<void> _login() async {
-    if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty) {
+    final email = emailCtrl.text.trim();
+    final password = passCtrl.text;
+    final emailValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+
+    if (!emailValid || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+        const SnackBar(content: Text('Email invalide ou mot de passe manquant')),
       );
       return;
     }
 
     setState(() => loading = true);
     try {
-      await api.login(emailCtrl.text, passCtrl.text);
+      await api.login(email, password);
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } catch (e) {
