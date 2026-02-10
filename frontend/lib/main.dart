@@ -27,7 +27,8 @@ Future<void> main() async {
   }
   await SupabaseService.init(url: url, anonKey: key);
   // FCM : on n'initialise que sur mobile et seulement si Firebase est configuré.
-  if (!kIsWeb) {
+  const enablePush = false; // passe à true quand google-services.json / GoogleService-Info.plist sont en place
+  if (!kIsWeb && enablePush) {
     try {
       await PushService.init();
     } catch (e) {
