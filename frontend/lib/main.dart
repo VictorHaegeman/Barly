@@ -12,6 +12,7 @@ import 'services/supabase_service.dart';
 import 'services/push_service.dart';
 import 'config/supabase_options.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
