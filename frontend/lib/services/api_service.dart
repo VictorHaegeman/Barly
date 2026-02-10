@@ -7,6 +7,8 @@ class ApiService {
   ApiService() : client = Supabase.instance.client;
   final SupabaseClient client;
 
+  bool get isAuthenticated => client.auth.currentSession != null;
+
   Future<String?> get token async => client.auth.currentSession?.accessToken;
 
   Future<void> logout() => client.auth.signOut();

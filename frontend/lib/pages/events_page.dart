@@ -12,11 +12,13 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   final api = ApiService();
   List<Map<String, dynamic>> events = [];
+  bool authed = false;
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
+    authed = api.isAuthenticated;
     _load();
   }
 
@@ -40,10 +42,11 @@ class _EventsPageState extends State<EventsPage> {
     } catch (_) {
       events = [];
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Connecte-toi pour voir / créer des événements')),
-        );
+        final msg = authed
+            ? 'Impossible de charger les événements'
+            : 'Connecte-toi pour voir / créer des événements';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     }
     if (mounted) setState(() => loading = false);
@@ -105,10 +108,12 @@ class _EventsPageState extends State<EventsPage> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.event_busy, size: 64, color: Color(0xFF9B7BFF)),
-          SizedBox(height: 16),
-          Text('Aucun événement pour le moment'),
+        children: [
+          const Icon(Icons.event_busy, size: 64, color: Color(0xFF9B7BFF)),
+          const SizedBox(height: 16),
+          Text(authed
+              ? 'Aucun événement pour le moment'
+              : 'Connecte-toi pour voir / créer des événements'),
         ],
       ),
     );

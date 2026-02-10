@@ -145,24 +145,34 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfilePicture() {
+    final initials = (userInfo['firstName'] ?? '')
+        .toString()
+        .trim()
+        .split(' ')
+        .where((p) => p.isNotEmpty)
+        .map((p) => p[0].toUpperCase())
+        .take(2)
+        .join();
+
     return Stack(
       children: [
         CircleAvatar(
           radius: 60,
           backgroundColor: const Color(0xFFE5E7EB),
-          child: ClipOval(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-              width: 120,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.person,
-                size: 60,
-                color: Color(0xFF9B7BFF),
-              ),
-            ),
-          ),
+          child: initials.isNotEmpty
+              ? Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9B7BFF),
+                  ),
+                )
+              : const Icon(
+                  Icons.person,
+                  size: 60,
+                  color: Color(0xFF9B7BFF),
+                ),
         ),
         Positioned(
           bottom: 0,

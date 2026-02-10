@@ -36,15 +36,14 @@ class BarlyApp extends StatelessWidget {
       title: 'Barly',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      home: const SplashGate(),
       routes: {
-        '/': (_) => const SplashGate(),
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
         '/map': (_) => const MapPage(),
         '/boosts': (_) => const BoostsPage(),
         '/home': (_) => const MainTabs(),
       },
-      home: const SplashGate(),
     );
   }
 }

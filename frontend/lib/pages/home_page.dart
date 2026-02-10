@@ -16,6 +16,7 @@ class _HomePageState extends State<HomePage> {
   final api = ApiService();
   List<Map<String, dynamic>> bars = [];
   List<Map<String, dynamic>> events = [];
+  bool authed = false;
   Map<String, dynamic> preferences = {
     'ambiance': <String>[],
     'music': <String>[],
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
+    authed = api.isAuthenticated;
     await _loadMe();
     try {
       final fetchedBars = await api.getBars();
@@ -74,8 +76,11 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       events = [];
       if (mounted) {
+        final msg = authed
+            ? 'Impossible de charger les événements'
+            : 'Connecte-toi pour voir les événements';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connecte-toi pour voir les événements')),
+          SnackBar(content: Text(msg)),
         );
       }
     }
@@ -266,9 +271,11 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 16),
                     if (events.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: Text('Connecte-toi pour voir les événements'),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(authed
+                            ? 'Aucun événement pour le moment'
+                            : 'Connecte-toi pour voir les événements'),
                       )
                     else
                       ...events.map((event) => Padding(
