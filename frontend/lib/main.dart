@@ -25,7 +25,10 @@ Future<void> main() async {
             'Définis SUPABASE_URL et SUPABASE_ANON_KEY via --dart-define ou dans lib/config/supabase_options.dart');
   }
   await SupabaseService.init(url: url, anonKey: key);
-  await PushService.init();
+  // FCM n'est pas configuré pour le Web ici ; on initialise le push uniquement sur mobile.
+  if (!kIsWeb) {
+    await PushService.init();
+  }
   runApp(const BarlyApp());
 }
 
