@@ -11,8 +11,8 @@ import 'services/api_service.dart';
 import 'services/supabase_service.dart';
 import 'services/push_service.dart';
 import 'config/supabase_options.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +26,14 @@ Future<void> main() async {
             'Définis SUPABASE_URL et SUPABASE_ANON_KEY via --dart-define ou dans lib/config/supabase_options.dart');
   }
   await SupabaseService.init(url: url, anonKey: key);
-  // FCM n'est pas configuré pour le Web ici ; on initialise le push uniquement sur mobile.
+  // FCM : on n'initialise que sur mobile et seulement si Firebase est configuré.
   if (!kIsWeb) {
-    await PushService.init();
+    try {
+      await PushService.init();
+    } catch (e) {
+      // Si google-services.json/GoogleService-Info.plist manquent, on ignore pour éviter le crash.
+      debugPrint('Push init skipped: $e');
+    }
   }
   runApp(const BarlyApp());
 }
