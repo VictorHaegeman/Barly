@@ -31,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool loading = true;
   final _picker = ImagePicker();
   bool avatarUploading = false;
+  final phoneCtrl = TextEditingController();
+  final otpCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -123,6 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           'email'),
                       _buildInfoItem('Téléphone', userInfo['phone'] ?? '',
                           'phone'),
+                      _buildPhoneActions(),
                     ]),
                     _buildDivider(),
                     _buildSection('Préférences Bars & Alcool', [
@@ -613,6 +616,102 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } finally {
       if (mounted) setState(() => avatarUploading = false);
+    }
+  }
+
+  Widget _buildPhoneActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Téléphone (avec indicatif +33...)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _sendOtp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF9B7BFF),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Code'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: otpCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Code OTP reçu',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _verifyOtp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Valider'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sendOtp() async {
+    final phone = phoneCtrl.text.trim();
+    if (phone.isEmpty) return;
+    try {
+      await api.sendPhoneOtp(phone);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Code envoyé par SMS')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Échec de l’envoi du code')),
+        );
+      }
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    final phone = phoneCtrl.text.trim();
+    final code = otpCtrl.text.trim();
+    if (phone.isEmpty || code.isEmpty) return;
+    try {
+      await api.verifyPhoneOtp(phone: phone, code: code);
+      await api.updateProfile(phone: phone);
+      setState(() => userInfo['phone'] = phone);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Téléphone vérifié')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Code invalide ou expiré')),
+        );
+      }
     }
   }
 

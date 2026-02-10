@@ -176,6 +176,7 @@ class ApiService {
       'notif_push': profile?['notif_push'] ?? true,
       'notif_email': profile?['notif_email'] ?? false,
       'price_level': profile?['price_level'],
+      'fcm_token': user.userMetadata?['fcm_token'],
     };
   }
 
@@ -188,6 +189,7 @@ class ApiService {
     String? priceLevel,
     bool? notifPush,
     bool? notifEmail,
+    String? fcmToken,
   }) async {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
@@ -201,6 +203,7 @@ class ApiService {
           data: {
             if (firstName != null) 'first_name': firstName,
             if (prefs != null) 'prefs': prefs,
+            if (fcmToken != null) 'fcm_token': fcmToken,
           },
         ),
       );
@@ -217,6 +220,22 @@ class ApiService {
       if (notifPush != null) 'notif_push': notifPush,
       if (notifEmail != null) 'notif_email': notifEmail,
     });
+  }
+
+  Future<void> saveFcmToken(String token) async {
+    await updateProfile(fcmToken: token);
+  }
+
+  Future<void> sendPhoneOtp(String phone) async {
+    await client.auth.signInWithOtp(phone: phone);
+  }
+
+  Future<void> verifyPhoneOtp({required String phone, required String code}) async {
+    await client.auth.verifyOTP(
+      token: code,
+      type: OtpType.sms,
+      phone: phone,
+    );
   }
 
   Future<String> uploadAvatar({

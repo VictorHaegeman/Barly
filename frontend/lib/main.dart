@@ -9,6 +9,7 @@ import 'pages/profile_page.dart';
 import 'pages/boosts_page.dart';
 import 'services/api_service.dart';
 import 'services/supabase_service.dart';
+import 'services/push_service.dart';
 import 'config/supabase_options.dart';
 import 'package:flutter/services.dart';
 
@@ -24,6 +25,7 @@ Future<void> main() async {
             'Définis SUPABASE_URL et SUPABASE_ANON_KEY via --dart-define ou dans lib/config/supabase_options.dart');
   }
   await SupabaseService.init(url: url, anonKey: key);
+  await PushService.init();
   runApp(const BarlyApp());
 }
 
