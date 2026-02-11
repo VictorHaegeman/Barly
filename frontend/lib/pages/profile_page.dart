@@ -539,15 +539,17 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!presets.contains(initial) && initial != 'Non renseigne') {
       presets.add(initial);
     }
+    String selected = presets.contains(initial) ? initial : '10 EUR';
+    bool saving = false;
+    final customCtrl = TextEditingController();
+    final customFocus = FocusNode();
+
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
       showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setStateSheet) {
-          String selected = presets.contains(initial) ? initial : '10 EUR';
-          bool saving = false;
-          final customCtrl = TextEditingController();
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: Column(
@@ -566,7 +568,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     trailing: selected == item
                         ? const Icon(Icons.check, color: Color(0xFF7C3AED))
                         : null,
-                    onTap: () => setStateSheet(() => selected = item),
+                    onTap: () {
+                      setStateSheet(() => selected = item);
+                      customFocus.unfocus();
+                    },
                   ),
                 ),
                 ListTile(
@@ -575,12 +580,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   trailing: selected == 'custom'
                       ? const Icon(Icons.check, color: Color(0xFF7C3AED))
                       : null,
-                  onTap: () => setStateSheet(() => selected = 'custom'),
+                  onTap: () {
+                    setStateSheet(() => selected = 'custom');
+                    customFocus.requestFocus();
+                  },
                 ),
                 if (selected == 'custom') ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: customCtrl,
+                    focusNode: customFocus,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
