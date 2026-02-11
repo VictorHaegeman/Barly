@@ -14,8 +14,12 @@ alter table public.bars
 
 alter table public.events
   add column if not exists date timestamptz,
+  add column if not exists description text,
   add column if not exists type text,
   add column if not exists is_private boolean default false,
+  add column if not exists is_free boolean default true,
+  add column if not exists ticket_price text,
+  add column if not exists access_code_hash text,
   add column if not exists participants uuid[] default '{}'::uuid[];
 
 -- Bars
@@ -30,9 +34,9 @@ values
 on conflict (id) do nothing;
 
 -- Events
-insert into public.events (id, bar_id, title, date, type, is_private, participants)
+insert into public.events (id, bar_id, title, description, date, type, is_private, is_free, ticket_price, access_code_hash, participants)
 values
-  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b1', 'Soiree House', now() + interval '1 day', 'Soiree', false, '{}'::uuid[]),
-  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000b2', 'Live Jazz', now() + interval '2 day', 'Concert', false, '{}'::uuid[]),
-  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000b3', 'Soiree privee VIP', now() + interval '3 day', 'Soiree', true, '{}'::uuid[])
+  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b1', 'Soiree House', 'Open format, entree libre et DJ guest.', now() + interval '1 day', 'Soiree', false, true, null, null, '{}'::uuid[]),
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000b2', 'Live Jazz', 'Concert live avec line-up resident.', now() + interval '2 day', 'Concert', false, false, '12,99€', null, '{}'::uuid[]),
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000b3', 'Soiree privee VIP', 'Evenement prive sur invitation avec code.', now() + interval '3 day', 'Soiree', true, true, null, md5('123456'), '{}'::uuid[])
 on conflict (id) do nothing;

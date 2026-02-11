@@ -370,6 +370,13 @@ class _ProfilePageState extends State<ProfilePage> {
     return prefs;
   }
 
+  Future<void> _dismissPopup(BuildContext popupContext) async {
+    final localNavigator = Navigator.of(popupContext);
+    final didPopLocal = await localNavigator.maybePop();
+    if (didPopLocal || !mounted) return;
+    await Navigator.of(context, rootNavigator: true).maybePop();
+  }
+
   void _showEditDialog({
     required String label,
     required String field,
@@ -379,9 +386,11 @@ class _ProfilePageState extends State<ProfilePage> {
       text: currentValue == 'Non renseigne' ? '' : currentValue,
     );
 
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Modifier'),
         content: TextField(
           controller: controller,
@@ -394,7 +403,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Annuler'),
           ),
           FilledButton(
@@ -408,8 +417,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
                 if (!mounted) return;
                 setState(() => userInfo[field] = value);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                await _dismissPopup(dialogContext);
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       field == 'email'
@@ -420,7 +429,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               } catch (_) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Erreur de sauvegarde')),
                 );
               }
@@ -443,6 +452,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final current = userInfo[field] == true;
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (sheetContext) {
         bool nextValue = current;
@@ -476,19 +486,20 @@ class _ProfilePageState extends State<ProfilePage> {
                         : () async {
                             setSheetState(() => saving = true);
                             try {
-                              await api.updateProfile(
-                                notifPush: field == 'pushNotifications'
-                                    ? nextValue
-                                    : null,
-                                notifEmail: field == 'emailNotifications'
-                                    ? nextValue
-                                    : null,
-                              );
+                              await api
+                                  .updateProfile(
+                                    notifPush: field == 'pushNotifications'
+                                        ? nextValue
+                                        : null,
+                                    notifEmail: field == 'emailNotifications'
+                                        ? nextValue
+                                        : null,
+                                  )
+                                  .timeout(const Duration(seconds: 12));
                               if (!mounted) return;
                               setState(() => userInfo[field] = nextValue);
-                              if (sheetContext.mounted &&
-                                  Navigator.of(sheetContext).canPop()) {
-                                Navigator.of(sheetContext).pop();
+                              if (sheetContext.mounted) {
+                                await _dismissPopup(sheetContext);
                               }
                               messenger.showSnackBar(
                                 const SnackBar(
@@ -533,6 +544,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final selected = Set<String>.from(userInfo[field] ?? const []);
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) {
@@ -583,17 +595,18 @@ class _ProfilePageState extends State<ProfilePage> {
                             setSheetState(() => saving = true);
                             try {
                               final updated = selected.toList()..sort();
-                              await api.updateProfile(
-                                prefs: _buildPrefsPayload(
-                                  keyName: keyName,
-                                  values: updated,
-                                ),
-                              );
+                              await api
+                                  .updateProfile(
+                                    prefs: _buildPrefsPayload(
+                                      keyName: keyName,
+                                      values: updated,
+                                    ),
+                                  )
+                                  .timeout(const Duration(seconds: 12));
                               if (!mounted) return;
                               setState(() => userInfo[field] = updated);
-                              if (sheetContext.mounted &&
-                                  Navigator.of(sheetContext).canPop()) {
-                                Navigator.of(sheetContext).pop();
+                              if (sheetContext.mounted) {
+                                await _dismissPopup(sheetContext);
                               }
                               messenger.showSnackBar(
                                 const SnackBar(
@@ -636,6 +649,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -669,7 +683,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     );
                   }
                   if (!mounted) return;
-                  Navigator.pop(context);
+                  await _dismissPopup(context);
                 },
               );
             }),

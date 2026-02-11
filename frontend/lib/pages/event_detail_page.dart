@@ -32,6 +32,21 @@ class _EventDetailPageState extends State<EventDetailPage> {
     return 0;
   }
 
+  bool get isFree {
+    final raw = widget.event['isFree'] ?? widget.event['is_free'];
+    if (raw is bool) return raw;
+    return true;
+  }
+
+  String get priceLabel {
+    if (isPrivate) return 'Code requis';
+    final ticketPrice = widget.event['ticket_price']?.toString().trim();
+    if (ticketPrice != null && ticketPrice.isNotEmpty) return ticketPrice;
+    final fallback = widget.event['price']?.toString().trim();
+    if (fallback == null || fallback.isEmpty) return 'Gratuit';
+    return fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,6 +159,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       _formatDate(widget.event['date']?.toString())),
                   const SizedBox(height: 10),
                   _infoRow(Icons.people, 'Participants', '$participantsCount'),
+                  const SizedBox(height: 10),
+                  _infoRow(
+                    Icons.payments_outlined,
+                    'Prix',
+                    priceLabel,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     isPrivate
@@ -181,7 +202,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                             )
                           : Text(
                               isPrivate
-                                  ? 'Je participe avec un code'
+                                  ? 'Je participe avec un code d evenement'
                                   : 'Confirmer ma participation',
                               style: const TextStyle(
                                 fontSize: 16,
@@ -240,32 +261,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   Future<void> _handleJoinAction() async {
-    if (isPrivate) {
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Evenement prive'),
-          content: const Text(
-            'Cette soiree est privee. Utilise ton code d evenement ou demande-le a l organisateur.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
     if (!api.isAuthenticated) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Connecte-toi pour participer')),
       );
       return;
+    }
+
+    String? privateCode;
+    if (isPrivate) {
+      privateCode = await _askPrivateCode();
+      if (privateCode == null) return;
     }
 
     final id =
@@ -280,7 +287,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
     setState(() => joining = true);
     try {
-      await api.joinEvent(id);
+      await api.joinEvent(
+        id,
+        isPrivate: isPrivate,
+        privateCode: privateCode,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -289,17 +300,68 @@ class _EventDetailPageState extends State<EventDetailPage> {
         ),
       );
       Navigator.pop(context, true);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erreur lors de l inscription'),
-          backgroundColor: Color(0xFFEF4444),
+        SnackBar(
+          content: Text(
+            e.toString().contains('Code prive')
+                ? 'Code prive invalide'
+                : 'Erreur lors de l inscription',
+          ),
+          backgroundColor: const Color(0xFFEF4444),
         ),
       );
     } finally {
       if (mounted) setState(() => joining = false);
     }
+  }
+
+  Future<String?> _askPrivateCode() async {
+    final controller = TextEditingController();
+    String? result;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Code d evenement prive'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            hintText: 'Entrez le code a 6 chiffres',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final code = controller.text.trim();
+              if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Le code doit contenir 6 chiffres'),
+                  ),
+                );
+                return;
+              }
+              result = code;
+              Navigator.pop(dialogContext);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+    return result;
   }
 
   String _formatDate(String? value) {

@@ -44,8 +44,12 @@ create table if not exists public.events (
   bar_id uuid references public.bars on delete cascade,
   title text not null,
   date timestamptz,
+  description text,
   type text,
   is_private boolean default false,
+  is_free boolean default true,
+  ticket_price text,
+  access_code_hash text,
   participants uuid[] default '{}',
   created_by uuid references auth.users,
   created_at timestamptz default now()
@@ -53,7 +57,11 @@ create table if not exists public.events (
 
 -- Compatibilite schema existant
 alter table public.events
-  add column if not exists is_private boolean default false;
+  add column if not exists description text,
+  add column if not exists is_private boolean default false,
+  add column if not exists is_free boolean default true,
+  add column if not exists ticket_price text,
+  add column if not exists access_code_hash text;
 
 create table if not exists public.favorites (
   user_id uuid references auth.users on delete cascade,
@@ -98,10 +106,54 @@ language plpgsql
 as $$
 declare
   uid uuid := auth.uid();
+  event_is_private boolean;
 begin
   if uid is null then
     raise exception 'not authenticated';
   end if;
+
+  select is_private
+  into event_is_private
+  from public.events
+  where id = p_event_id;
+
+  if event_is_private then
+    raise exception 'private event requires code';
+  end if;
+
+  update public.events
+    set participants = array(select distinct unnest(coalesce(participants, '{}')::uuid[]) union select uid)
+    where id = p_event_id;
+end;
+$$;
+
+-- RPC: Join private event with 6-digit code
+create or replace function public.join_private_event(p_event_id uuid, p_code text)
+returns void
+language plpgsql
+as $$
+declare
+  uid uuid := auth.uid();
+  required_hash text;
+begin
+  if uid is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select access_code_hash
+  into required_hash
+  from public.events
+  where id = p_event_id
+    and is_private = true;
+
+  if required_hash is null then
+    raise exception 'private event not found';
+  end if;
+
+  if md5(coalesce(p_code, '')) <> required_hash then
+    raise exception 'invalid private code';
+  end if;
+
   update public.events
     set participants = array(select distinct unnest(coalesce(participants, '{}')::uuid[]) union select uid)
     where id = p_event_id;

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service d'accès aux données via Supabase.
@@ -97,21 +99,39 @@ class ApiService {
       rows = await client
           .from('events')
           .select(
-              'id,title,date,participants,type,is_private,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
+              'id,title,date,participants,type,is_private,is_free,ticket_price,description,created_by,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
           .order('date');
     } catch (_) {
-      // Compatibilite si la colonne is_private n'existe pas encore.
-      rows = await client
-          .from('events')
-          .select(
-              'id,title,date,participants,type,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
-          .order('date');
+      try {
+        // Compatibilite si les nouvelles colonnes n'existent pas encore.
+        rows = await client
+            .from('events')
+            .select(
+                'id,title,date,participants,type,is_private,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
+            .order('date');
+      } catch (_) {
+        rows = await client
+            .from('events')
+            .select(
+                'id,title,date,participants,type,bar_id,bar:bars(id,name,cover_url,address,price_level,pint_price)')
+            .order('date');
+      }
     }
 
     return rows.map<Map<String, dynamic>>((e) {
       final map = Map<String, dynamic>.from(e as Map);
       final bar = Map<String, dynamic>.from(map['bar'] ?? {});
       final participants = List.from(map['participants'] ?? []);
+      final isPrivate = map['is_private'] == true;
+      final isFree = map['is_free'] != false;
+      final ticketPrice = map['ticket_price']?.toString().trim();
+      final priceLabel = isPrivate
+          ? 'Code requis'
+          : (isFree
+              ? 'Gratuit'
+              : (ticketPrice == null || ticketPrice.isEmpty
+                  ? 'Payant'
+                  : ticketPrice));
       return {
         ...map,
         'id': map['id']?.toString(),
@@ -119,17 +139,56 @@ class ApiService {
         'bar': bar['name'],
         'bar_id': map['bar_id'],
         'participants': participants,
-        'price': 'Gratuit',
+        'price': priceLabel,
+        'isFree': isFree,
+        'ticket_price': map['ticket_price'],
+        'description': map['description'],
+        'created_by': map['created_by'],
         'type': map['type'] ?? 'Evenement',
         'date': map['date']?.toString(),
-        'isPrivate': map['is_private'] == true,
+        'isPrivate': isPrivate,
       };
     }).toList();
   }
 
-  Future<void> joinEvent(String id) async {
+  Future<void> joinEvent(
+    String id, {
+    bool isPrivate = false,
+    String? privateCode,
+  }) async {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
+
+    if (isPrivate) {
+      final code = (privateCode ?? '').trim();
+      if (code.length != 6) {
+        throw Exception('Code prive invalide (6 chiffres requis)');
+      }
+      try {
+        await client.rpc('join_private_event', params: {
+          'p_event_id': id,
+          'p_code': code,
+        });
+        return;
+      } catch (_) {
+        // fallback: verify hash locally if RPC not yet deployed
+        final existing = await client
+            .from('events')
+            .select('participants,access_code_hash')
+            .eq('id', id)
+            .maybeSingle();
+        final requiredHash = (existing?['access_code_hash'] ?? '').toString();
+        if (requiredHash.isNotEmpty && _hashAccessCode(code) != requiredHash) {
+          throw Exception('Code prive incorrect');
+        }
+        final current = List<String>.from(existing?['participants'] ?? []);
+        if (!current.contains(user.id)) current.add(user.id);
+        await client
+            .from('events')
+            .update({'participants': current}).eq('id', id);
+        return;
+      }
+    }
 
     // Si une fonction RPC join_event existe côté Supabase, on l'utilise.
     try {
@@ -156,9 +215,21 @@ class ApiService {
     required String date,
     String? type,
     bool isPrivate = false,
+    bool isFree = true,
+    String? ticketPrice,
+    String? accessCode,
+    String? description,
   }) async {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
+    if (isPrivate) {
+      final code = (accessCode ?? '').trim();
+      if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+        throw Exception('Code prive invalide (6 chiffres requis)');
+      }
+    } else if (!isFree && (ticketPrice == null || ticketPrice.trim().isEmpty)) {
+      throw Exception('Le prix est requis pour un evenement payant');
+    }
 
     final payload = {
       'bar_id': barId,
@@ -168,15 +239,37 @@ class ApiService {
       'type': type ?? 'Evenement',
       'created_by': user.id,
       'is_private': isPrivate,
+      'is_free': isPrivate ? true : isFree,
+      'ticket_price': isPrivate || isFree ? null : ticketPrice?.trim(),
+      'access_code_hash':
+          isPrivate ? _hashAccessCode((accessCode ?? '').trim()) : null,
+      'description':
+          description?.trim().isEmpty == true ? null : description?.trim(),
     };
 
     dynamic insert;
     try {
       insert = await client.from('events').insert(payload).select().single();
     } catch (_) {
-      // Compatibilite si la colonne is_private n'existe pas encore.
-      payload.remove('is_private');
-      insert = await client.from('events').insert(payload).select().single();
+      if (isPrivate || !isFree) {
+        throw Exception(
+          'Schema Supabase events obsolete: execute supabase/schema.sql',
+        );
+      }
+      // Compatibilite schema legacy
+      final legacyPayload = Map<String, dynamic>.from(payload)
+        ..remove('is_free')
+        ..remove('ticket_price')
+        ..remove('access_code_hash')
+        ..remove('description');
+      try {
+        insert =
+            await client.from('events').insert(legacyPayload).select().single();
+      } catch (_) {
+        legacyPayload.remove('is_private');
+        insert =
+            await client.from('events').insert(legacyPayload).select().single();
+      }
     }
 
     return Map<String, dynamic>.from(insert);
@@ -249,6 +342,10 @@ class ApiService {
 
   Future<void> saveFcmToken(String token) async {
     await updateProfile(fcmToken: token);
+  }
+
+  String _hashAccessCode(String code) {
+    return md5.convert(utf8.encode(code)).toString();
   }
 
   Future<void> sendPhoneOtp(String phone) async {

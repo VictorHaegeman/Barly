@@ -49,17 +49,33 @@ class _EventsPageState extends State<EventsPage> {
         ? participantsRaw.length
         : (participantsRaw is num ? participantsRaw.toInt() : 0);
 
+    final isPrivate = e['isPrivate'] == true ||
+        e['is_private'] == true ||
+        e['visibility']?.toString().toLowerCase() == 'private';
+    final isFree = e['isFree'] != false && e['is_free'] != false;
+    final ticketPrice = e['ticket_price']?.toString().trim();
+    final fallbackPrice = e['price']?.toString().trim();
+    final computedPrice = isPrivate
+        ? 'Code requis'
+        : (isFree
+            ? 'Gratuit'
+            : (ticketPrice != null && ticketPrice.isNotEmpty
+                ? ticketPrice
+                : (fallbackPrice?.isNotEmpty == true
+                    ? fallbackPrice!
+                    : 'Payant')));
+
     return {
       ...e,
       'title': e['title']?.toString() ?? 'Evenement',
       'bar': e['barName']?.toString() ?? e['bar']?.toString() ?? 'Bar',
       'date': e['date']?.toString(),
       'participantsCount': participantsCount,
-      'price': e['price']?.toString() ?? 'Gratuit',
+      'price': computedPrice,
+      'isFree': isFree,
+      'ticket_price': e['ticket_price'],
       'type': e['type']?.toString() ?? 'Evenement',
-      'isPrivate': e['isPrivate'] == true ||
-          e['is_private'] == true ||
-          e['visibility']?.toString().toLowerCase() == 'private',
+      'isPrivate': isPrivate,
     };
   }
 
@@ -129,7 +145,7 @@ class _EventsPageState extends State<EventsPage> {
             ? event['description'].toString().trim()
             : 'Description indisponible pour le moment.';
     final ctaLabel = isPrivate
-        ? 'Je participe avec un code'
+        ? 'Je participe avec un code d evenement'
         : _ctaPriceLabel(event['price']);
 
     return Container(
@@ -336,10 +352,13 @@ class _CreateEventDialog extends StatefulWidget {
 class _CreateEventDialogState extends State<_CreateEventDialog> {
   final titleCtrl = TextEditingController();
   final descriptionCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+  final privateCodeCtrl = TextEditingController();
   DateTime date = DateTime.now().add(const Duration(days: 1));
   String? barId;
   String eventType = 'Musique';
   bool isPrivate = false;
+  bool isFree = true;
   final api = ApiService();
   List<Map<String, dynamic>> bars = [];
   bool loading = true;
@@ -356,6 +375,15 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
   void initState() {
     super.initState();
     _loadBars();
+  }
+
+  @override
+  void dispose() {
+    titleCtrl.dispose();
+    descriptionCtrl.dispose();
+    priceCtrl.dispose();
+    privateCodeCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBars() async {
@@ -442,8 +470,50 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
                 DropdownMenuItem(value: false, child: Text('Ouvert')),
                 DropdownMenuItem(value: true, child: Text('Prive')),
               ],
-              onChanged: (value) => setState(() => isPrivate = value ?? false),
+              onChanged: (value) => setState(() {
+                isPrivate = value ?? false;
+                if (isPrivate) {
+                  isFree = true;
+                  priceCtrl.clear();
+                } else {
+                  privateCodeCtrl.clear();
+                }
+              }),
             ),
+            const SizedBox(height: 16),
+            if (!isPrivate) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Evenement gratuit'),
+                value: isFree,
+                onChanged: (value) => setState(() => isFree = value),
+              ),
+              if (!isFree) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: false,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Prix (ex: 12,99€)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ] else ...[
+              TextField(
+                controller: privateCodeCtrl,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Code prive (6 chiffres)',
+                  hintText: 'Ex: 123456',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: barId,
@@ -495,6 +565,21 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
       return;
     }
     if (titleCtrl.text.trim().isEmpty || barId == null) return;
+    if (isPrivate &&
+        !RegExp(r'^\d{6}$').hasMatch(privateCodeCtrl.text.trim())) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le code prive doit contenir 6 chiffres')),
+      );
+      return;
+    }
+    if (!isPrivate && !isFree && priceCtrl.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ajoute un prix ou active Gratuit')),
+      );
+      return;
+    }
 
     try {
       final created = await api.createEvent(
@@ -503,6 +588,10 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
         date: date.toIso8601String(),
         type: eventType,
         isPrivate: isPrivate,
+        isFree: isPrivate ? true : isFree,
+        ticketPrice: isPrivate || isFree ? null : priceCtrl.text.trim(),
+        accessCode: isPrivate ? privateCodeCtrl.text.trim() : null,
+        description: descriptionCtrl.text.trim(),
       );
       final barName = bars
           .firstWhere((b) =>
@@ -510,10 +599,14 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
           .toString();
       final event = {
         ...created,
-        'bar': barName,
+        'barName': barName,
         'description': descriptionCtrl.text.trim(),
         'participantsCount': (created['participants'] as List?)?.length ?? 0,
         'isPrivate': isPrivate,
+        'isFree': isPrivate ? true : isFree,
+        'ticket_price': isPrivate || isFree ? null : priceCtrl.text.trim(),
+        'price':
+            isPrivate ? 'Code requis' : (isFree ? 'Gratuit' : priceCtrl.text),
       };
       widget.onCreated(event);
       if (!mounted) return;
