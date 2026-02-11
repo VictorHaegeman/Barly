@@ -342,13 +342,17 @@ class ApiService {
     } on PostgrestException catch (e) {
       final missingPrefs =
           _isMissingColumnError(e, 'prefs') && update.containsKey('prefs');
+      final missingPrice = _isMissingColumnError(e, 'price_level') &&
+          update.containsKey('price_level');
       if (!missingPrefs) rethrow;
       final prefsPayload = update.remove('prefs');
+      final pricePayload = missingPrice ? update.remove('price_level') : null;
       await _upsertUserProfileWithEmailFallback(update);
-      if (prefsPayload != null) {
-        await client.auth.updateUser(
-          UserAttributes(data: {'prefs': prefsPayload}),
-        );
+      final meta = <String, dynamic>{};
+      if (prefsPayload != null) meta['prefs'] = prefsPayload;
+      if (pricePayload != null) meta['price_level'] = pricePayload;
+      if (meta.isNotEmpty) {
+        await client.auth.updateUser(UserAttributes(data: meta));
       }
     }
   }
@@ -367,19 +371,29 @@ class ApiService {
           _isMissingColumnError(error, 'email') && payload.containsKey('email');
       final missingPrefs =
           _isMissingColumnError(error, 'prefs') && payload.containsKey('prefs');
-      if (!missingEmail && !missingPrefs) rethrow;
+      final missingPrice = _isMissingColumnError(error, 'price_level') &&
+          payload.containsKey('price_level');
+      if (!missingEmail && !missingPrefs && !missingPrice) rethrow;
 
       final fallback = Map<String, dynamic>.from(payload);
       Map<String, dynamic>? prefsPayload;
+      String? pricePayload;
       if (missingEmail) fallback.remove('email');
       if (missingPrefs && fallback.containsKey('prefs')) {
         prefsPayload = Map<String, dynamic>.from(fallback['prefs']);
         fallback.remove('prefs');
       }
+      if (missingPrice && fallback.containsKey('price_level')) {
+        pricePayload = fallback['price_level']?.toString();
+        fallback.remove('price_level');
+      }
       await client.from('users').upsert(fallback);
-      if (prefsPayload != null) {
+      if (prefsPayload != null || pricePayload != null) {
+        final meta = <String, dynamic>{};
+        if (prefsPayload != null) meta['prefs'] = prefsPayload;
+        if (pricePayload != null) meta['price_level'] = pricePayload;
         await client.auth.updateUser(
-          UserAttributes(data: {'prefs': prefsPayload}),
+          UserAttributes(data: meta),
         );
       }
     }
