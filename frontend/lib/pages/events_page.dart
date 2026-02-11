@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '../services/api_service.dart';
 import 'event_detail_page.dart';
 
@@ -475,6 +476,7 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
                 if (isPrivate) {
                   isFree = true;
                   priceCtrl.clear();
+                  privateCodeCtrl.text = _generateCode();
                 } else {
                   privateCodeCtrl.clear();
                 }
@@ -566,12 +568,8 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
     }
     if (titleCtrl.text.trim().isEmpty || barId == null) return;
     if (isPrivate &&
-        !RegExp(r'^\d{6}$').hasMatch(privateCodeCtrl.text.trim())) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Le code prive doit contenir 6 chiffres')),
-      );
-      return;
+        !RegExp(r'^\\d{6}$').hasMatch(privateCodeCtrl.text.trim())) {
+      privateCodeCtrl.text = _generateCode();
     }
     if (!isPrivate && !isFree && priceCtrl.text.trim().isEmpty) {
       if (!mounted) return;
@@ -626,5 +624,10 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
         ),
       );
     }
+  }
+
+  String _generateCode() {
+    final n = Random.secure().nextInt(900000) + 100000;
+    return n.toString();
   }
 }

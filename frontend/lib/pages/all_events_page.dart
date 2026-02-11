@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'event_detail_page.dart';
@@ -14,6 +15,8 @@ class AllEventsPage extends StatefulWidget {
 class _AllEventsPageState extends State<AllEventsPage> {
   final api = ApiService();
   List<Map<String, dynamic>> events = [];
+  List<Map<String, dynamic>> filtered = [];
+  final _searchCtrl = TextEditingController();
   bool loading = true;
 
   @override
@@ -25,22 +28,24 @@ class _AllEventsPageState extends State<AllEventsPage> {
   Future<void> _load() async {
     try {
       final fetched = await api.getEvents();
-      events = fetched
-          .map<Map<String, dynamic>>((e) => {
-                ...e as Map<String, dynamic>,
-                'title': (e as Map<String, dynamic>)['title'] ?? 'Événement',
-                'bar': (e as Map<String, dynamic>)['barName'] ??
-                    (e as Map<String, dynamic>)['bar'] ??
-                    'Bar',
-                'date': (e as Map<String, dynamic>)['date']?.toString(),
-                'participants':
-                    (e as Map<String, dynamic>)['participants']?.length ?? 0,
-                'price': 'Gratuit',
-                'type': 'Événement',
-              })
-          .toList();
+      events = fetched.map<Map<String, dynamic>>((e) {
+        final map = Map<String, dynamic>.from(e as Map);
+        return {
+          ...map,
+          'title': map['title'] ?? 'Événement',
+          'bar': map['barName'] ?? map['bar'] ?? 'Bar',
+          'date': map['date']?.toString(),
+          'participants': (map['participants'] as List?)?.length ?? 0,
+          'price': map['price'] ?? 'Gratuit',
+          'type': map['type'] ?? 'Événement',
+          'isPrivate': map['isPrivate'] ?? map['is_private'] == true,
+          'isFree': map['isFree'] ?? map['is_free'] != false,
+        };
+      }).toList();
+      filtered = List.from(events);
     } catch (_) {
       events = [];
+      filtered = [];
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -74,9 +79,7 @@ class _AllEventsPageState extends State<AllEventsPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list, color: AppTheme.text),
-            onPressed: () {
-              _showFilterDialog();
-            },
+            onPressed: _showFilterDialog,
           ),
         ],
       ),
@@ -84,13 +87,34 @@ class _AllEventsPageState extends State<AllEventsPage> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView.builder(
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  final event = events[index];
-                  return _buildEventCard(event);
-                },
+                children: [
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: 'Rechercher (titre, bar, type)',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: _applySearch,
+                  ),
+                  const SizedBox(height: 16),
+                  if (filtered.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Text('Aucun événement trouvé'),
+                      ),
+                    )
+                  else
+                    ...filtered.map(_buildEventCard),
+                ],
               ),
             ),
     );
@@ -98,6 +122,9 @@ class _AllEventsPageState extends State<AllEventsPage> {
 
   Widget _buildEventCard(Map<String, dynamic> event) {
     final date = DateTime.tryParse(event['date'] ?? '');
+    final dateLabel = date != null
+        ? DateFormat('dd/MM à HH:mm').format(date)
+        : 'Date inconnue';
 
     return GestureDetector(
       onTap: () {
@@ -194,7 +221,7 @@ class _AllEventsPageState extends State<AllEventsPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        date != null ? '/ à h' : 'Date inconnue',
+                        dateLabel,
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: AppTheme.textSecondary,
@@ -210,7 +237,7 @@ class _AllEventsPageState extends State<AllEventsPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            ' participants',
+                            '${event['participants']} participants',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               color: AppTheme.textSecondary,
@@ -227,6 +254,22 @@ class _AllEventsPageState extends State<AllEventsPage> {
         ),
       ),
     );
+  }
+
+  void _applySearch(String query) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) {
+      setState(() => filtered = List.from(events));
+      return;
+    }
+    setState(() {
+      filtered = events.where((e) {
+        final title = (e['title'] ?? '').toString().toLowerCase();
+        final bar = (e['bar'] ?? '').toString().toLowerCase();
+        final type = (e['type'] ?? '').toString().toLowerCase();
+        return title.contains(q) || bar.contains(q) || type.contains(q);
+      }).toList();
+    });
   }
 
   void _showFilterDialog() {

@@ -702,8 +702,10 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: priceCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Niveau de prix (€, €€, €€€)',
+                labelText: 'Prix de la pinte (€)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -748,7 +750,8 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
         coverUrl: coverCtrl.text.isNotEmpty ? coverCtrl.text : null,
         ambiance: ambiances,
         music: musics,
-        priceLevel: priceCtrl.text,
+        priceLevel: null,
+        pintPrice: priceCtrl.text.isNotEmpty ? '${priceCtrl.text} €' : null,
         description: descriptionCtrl.text,
       );
       widget.onCreated(bar);
