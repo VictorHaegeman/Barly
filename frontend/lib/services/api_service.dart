@@ -44,7 +44,7 @@ class ApiService {
     );
     final userId = res.user?.id;
     if (userId != null) {
-      await client.from('users').upsert({
+      await _upsertUserProfileWithEmailFallback({
         'id': userId,
         'email': email,
         'first_name': firstName,
@@ -337,11 +337,42 @@ class ApiService {
     if (priceLevel != null) update['price_level'] = priceLevel;
     if (notifPush != null) update['notif_push'] = notifPush;
     if (notifEmail != null) update['notif_email'] = notifEmail;
-    await client.from('users').upsert(update);
+    await _upsertUserProfileWithEmailFallback(update);
   }
 
   Future<void> saveFcmToken(String token) async {
     await updateProfile(fcmToken: token);
+  }
+
+  Future<void> _upsertUserProfileWithEmailFallback(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await client.from('users').upsert(payload);
+    } catch (error) {
+      if (!_isMissingColumnError(error, 'email') ||
+          !payload.containsKey('email')) {
+        rethrow;
+      }
+      final fallback = Map<String, dynamic>.from(payload)..remove('email');
+      await client.from('users').upsert(fallback);
+    }
+  }
+
+  bool _isMissingColumnError(Object error, String columnName) {
+    if (error is! PostgrestException) return false;
+    final col = columnName.toLowerCase();
+    final text = [
+      error.message,
+      error.details,
+      error.hint,
+      error.code,
+    ].join(' ').toLowerCase();
+    return text.contains("column '$col'") ||
+        text.contains('column "$col"') ||
+        text.contains("'$col' column") ||
+        (text.contains('could not find') && text.contains("'$col'")) ||
+        text.contains(' $col ');
   }
 
   String _hashAccessCode(String code) {

@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
     'ambiancePrefs': <String>[],
     'musicPrefs': <String>[],
     'drinkPrefs': <String>[],
-    'priceLevel': '€€',
+    'priceLevel': '\u20ac\u20ac',
   };
 
   bool loading = true;
@@ -32,6 +32,19 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _ambianceOptions = ['Cosy', 'Dance', 'Chill', 'Lounge'];
   static const _musicOptions = ['House', 'Pop', 'Jazz', 'RnB', 'Rock'];
   static const _drinkOptions = ['Cocktails', 'Bieres', 'Vins', 'Soft'];
+  static const _priceLevelByBudgetLabel = {
+    '20 EUR': '\u20ac',
+    '35 EUR': '\u20ac\u20ac',
+    '60 EUR+': '\u20ac\u20ac\u20ac',
+  };
+  static const _budgetLabelByPriceLevel = {
+    '\u20ac': '20 EUR',
+    '\u20ac\u20ac': '35 EUR',
+    '\u20ac\u20ac\u20ac': '60 EUR+',
+    '20 EUR': '20 EUR',
+    '35 EUR': '35 EUR',
+    '60 EUR+': '60 EUR+',
+  };
 
   @override
   void initState() {
@@ -186,16 +199,20 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   _buildActionRow(
-                    label: 'Budget par soiree',
-                    value: _displayValue(userInfo['priceLevel']),
+                    label: 'Budget moyen',
+                    value: _budgetLabelForDisplay(userInfo['priceLevel']),
                     onTap: () => _showChoiceDialog(
-                      title: 'Budget prefere',
-                      options: const ['€', '€€', '€€€'],
-                      selectedValue: userInfo['priceLevel']?.toString() ?? '€€',
+                      title: 'Budget moyen',
+                      options: _priceLevelByBudgetLabel.keys.toList(),
+                      selectedValue: _budgetLabelForDisplay(
+                        userInfo['priceLevel'],
+                      ),
                       onSelected: (value) async {
-                        await api.updateProfile(priceLevel: value);
+                        final normalized =
+                            _priceLevelByBudgetLabel[value] ?? value;
+                        await api.updateProfile(priceLevel: normalized);
                         if (!mounted) return;
-                        setState(() => userInfo['priceLevel'] = value);
+                        setState(() => userInfo['priceLevel'] = normalized);
                       },
                     ),
                   ),
@@ -353,6 +370,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final items = List<String>.from(value ?? const []);
     if (items.isEmpty) return 'Aucune selection';
     return items.join(', ');
+  }
+
+  String _budgetLabelForDisplay(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return 'Non renseigne';
+    return _budgetLabelByPriceLevel[raw] ?? raw;
   }
 
   Map<String, dynamic> _buildPrefsPayload({

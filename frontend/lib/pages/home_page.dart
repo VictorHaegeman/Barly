@@ -26,6 +26,21 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> recommended = [];
   bool loading = true;
 
+  String? _normalizeProfilePriceLevel(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return null;
+    switch (raw) {
+      case '20 EUR':
+        return '\u20ac';
+      case '35 EUR':
+        return '\u20ac\u20ac';
+      case '60 EUR+':
+        return '\u20ac\u20ac\u20ac';
+      default:
+        return raw;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -92,7 +107,7 @@ class _HomePageState extends State<HomePage> {
       final me = await api.getMe();
       if (me != null) {
         preferences = Map<String, dynamic>.from(me['prefs'] ?? preferences);
-        prefPrice = me['price_level']?.toString();
+        prefPrice = _normalizeProfilePriceLevel(me['price_level']);
       }
     } catch (_) {
       // si non connecté on garde des préférences vides
