@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
     'ambiancePrefs': <String>[],
     'musicPrefs': <String>[],
     'drinkPrefs': <String>[],
-    'priceLevel': '\u20ac\u20ac',
+    'priceLevel': '10 EUR',
   };
 
   bool loading = true;
@@ -32,19 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _ambianceOptions = ['Cosy', 'Dance', 'Chill', 'Lounge'];
   static const _musicOptions = ['House', 'Pop', 'Jazz', 'RnB', 'Rock'];
   static const _drinkOptions = ['Cocktails', 'Bieres', 'Vins', 'Soft'];
-  static const _priceLevelByBudgetLabel = {
-    '20 EUR': '\u20ac',
-    '35 EUR': '\u20ac\u20ac',
-    '60 EUR+': '\u20ac\u20ac\u20ac',
-  };
-  static const _budgetLabelByPriceLevel = {
-    '\u20ac': '20 EUR',
-    '\u20ac\u20ac': '35 EUR',
-    '\u20ac\u20ac\u20ac': '60 EUR+',
-    '20 EUR': '20 EUR',
-    '35 EUR': '35 EUR',
-    '60 EUR+': '60 EUR+',
-  };
+  static const _presetBudgets = ['5 EUR', '10 EUR', '15 EUR'];
 
   @override
   void initState() {
@@ -199,22 +187,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   _buildActionRow(
-                    label: 'Budget moyen',
+                    label: 'Budget moyen (boisson)',
                     value: _budgetLabelForDisplay(userInfo['priceLevel']),
-                    onTap: () => _showChoiceDialog(
-                      title: 'Budget moyen',
-                      options: _priceLevelByBudgetLabel.keys.toList(),
-                      selectedValue: _budgetLabelForDisplay(
-                        userInfo['priceLevel'],
-                      ),
-                      onSelected: (value) async {
-                        final normalized =
-                            _priceLevelByBudgetLabel[value] ?? value;
-                        await api.updateProfile(priceLevel: normalized);
-                        if (!mounted) return;
-                        setState(() => userInfo['priceLevel'] = normalized);
-                      },
-                    ),
+                    onTap: () => _showBudgetSheet(),
                   ),
                   const SizedBox(height: 20),
                   OutlinedButton.icon(
@@ -375,7 +350,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _budgetLabelForDisplay(dynamic value) {
     final raw = (value ?? '').toString().trim();
     if (raw.isEmpty) return 'Non renseigne';
-    return _budgetLabelByPriceLevel[raw] ?? raw;
+    return raw;
   }
 
   Map<String, dynamic> _buildPrefsPayload({
@@ -554,6 +529,118 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showBudgetSheet() {
+    final messenger = ScaffoldMessenger.of(context);
+    final initial = _budgetLabelForDisplay(userInfo['priceLevel']);
+    final presets = List<String>.from(_presetBudgets);
+    if (!presets.contains(initial) && initial != 'Non renseigne') {
+      presets.add(initial);
+    }
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setStateSheet) {
+          String selected = presets.contains(initial) ? initial : '10 EUR';
+          bool saving = false;
+          final customCtrl = TextEditingController();
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Budget moyen (boisson)',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                ...presets.map(
+                  (item) => ListTile(
+                    dense: true,
+                    title: Text(item),
+                    trailing: selected == item
+                        ? const Icon(Icons.check, color: Color(0xFF7C3AED))
+                        : null,
+                    onTap: () => setStateSheet(() => selected = item),
+                  ),
+                ),
+                ListTile(
+                  dense: true,
+                  title: const Text('Montant personnalise'),
+                  trailing: selected == 'custom'
+                      ? const Icon(Icons.check, color: Color(0xFF7C3AED))
+                      : null,
+                  onTap: () => setStateSheet(() => selected = 'custom'),
+                ),
+                if (selected == 'custom') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: customCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      prefixText: 'EUR ',
+                      labelText: 'Montant',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            String valueToSave = selected;
+                            if (selected == 'custom') {
+                              final parsed =
+                                  double.tryParse(customCtrl.text.trim());
+                              if (parsed == null || parsed <= 0) {
+                                messenger.showSnackBar(const SnackBar(
+                                    content: Text('Montant invalide')));
+                                return;
+                              }
+                              valueToSave =
+                                  '${parsed.toStringAsFixed(parsed % 1 == 0 ? 0 : 2)} EUR';
+                            }
+                            setStateSheet(() => saving = true);
+                            try {
+                              await api.updateProfile(priceLevel: valueToSave);
+                              if (!mounted) return;
+                              setState(
+                                  () => userInfo['priceLevel'] = valueToSave);
+                              if (sheetContext.mounted) {
+                                await _dismissPopup(sheetContext);
+                              }
+                              messenger.showSnackBar(const SnackBar(
+                                  content: Text('Budget mis a jour')));
+                            } catch (e) {
+                              messenger.showSnackBar(SnackBar(
+                                  content:
+                                      Text('Impossible de sauvegarder: $e')));
+                            } finally {
+                              if (sheetContext.mounted) {
+                                setStateSheet(() => saving = false);
+                              }
+                            }
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED),
+                    ),
+                    child: Text(saving ? 'Enregistrement...' : 'Enregistrer'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

@@ -337,7 +337,20 @@ class ApiService {
     if (priceLevel != null) update['price_level'] = priceLevel;
     if (notifPush != null) update['notif_push'] = notifPush;
     if (notifEmail != null) update['notif_email'] = notifEmail;
-    await _upsertUserProfileWithEmailFallback(update);
+    try {
+      await _upsertUserProfileWithEmailFallback(update);
+    } on PostgrestException catch (e) {
+      final missingPrefs =
+          _isMissingColumnError(e, 'prefs') && update.containsKey('prefs');
+      if (!missingPrefs) rethrow;
+      final prefsPayload = update.remove('prefs');
+      await _upsertUserProfileWithEmailFallback(update);
+      if (prefsPayload != null) {
+        await client.auth.updateUser(
+          UserAttributes(data: {'prefs': prefsPayload}),
+        );
+      }
+    }
   }
 
   Future<void> saveFcmToken(String token) async {
@@ -350,12 +363,25 @@ class ApiService {
     try {
       await client.from('users').upsert(payload);
     } catch (error) {
-      if (!_isMissingColumnError(error, 'email') ||
-          !payload.containsKey('email')) {
-        rethrow;
+      final missingEmail =
+          _isMissingColumnError(error, 'email') && payload.containsKey('email');
+      final missingPrefs =
+          _isMissingColumnError(error, 'prefs') && payload.containsKey('prefs');
+      if (!missingEmail && !missingPrefs) rethrow;
+
+      final fallback = Map<String, dynamic>.from(payload);
+      Map<String, dynamic>? prefsPayload;
+      if (missingEmail) fallback.remove('email');
+      if (missingPrefs && fallback.containsKey('prefs')) {
+        prefsPayload = Map<String, dynamic>.from(fallback['prefs']);
+        fallback.remove('prefs');
       }
-      final fallback = Map<String, dynamic>.from(payload)..remove('email');
       await client.from('users').upsert(fallback);
+      if (prefsPayload != null) {
+        await client.auth.updateUser(
+          UserAttributes(data: {'prefs': prefsPayload}),
+        );
+      }
     }
   }
 
