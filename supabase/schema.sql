@@ -12,6 +12,18 @@ create table if not exists public.users (
   created_at timestamptz default now()
 );
 
+-- Compatibilite schema existant (si la table users etait deja creee)
+alter table public.users
+  add column if not exists email text,
+  add column if not exists first_name text,
+  add column if not exists avatar_url text,
+  add column if not exists phone text,
+  add column if not exists prefs jsonb default '{}',
+  add column if not exists notif_push boolean default true,
+  add column if not exists notif_email boolean default false,
+  add column if not exists price_level text,
+  add column if not exists created_at timestamptz default now();
+
 create table if not exists public.bars (
   id uuid primary key default gen_random_uuid(),
   name text not null,

@@ -439,12 +439,14 @@ class _ProfilePageState extends State<ProfilePage> {
     required String field,
     required String title,
   }) {
+    final messenger = ScaffoldMessenger.of(context);
     final current = userInfo[field] == true;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      builder: (context) {
+      builder: (sheetContext) {
         bool nextValue = current;
+        bool saving = false;
         return StatefulBuilder(
           builder: (context, setSheetState) => Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -469,31 +471,48 @@ class _ProfilePageState extends State<ProfilePage> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () async {
-                      try {
-                        await api.updateProfile(
-                          notifPush:
-                              field == 'pushNotifications' ? nextValue : null,
-                          notifEmail:
-                              field == 'emailNotifications' ? nextValue : null,
-                        );
-                        if (!mounted) return;
-                        setState(() => userInfo[field] = nextValue);
-                        Navigator.pop(context);
-                      } catch (_) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Impossible de sauvegarder la preference'),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            setSheetState(() => saving = true);
+                            try {
+                              await api.updateProfile(
+                                notifPush: field == 'pushNotifications'
+                                    ? nextValue
+                                    : null,
+                                notifEmail: field == 'emailNotifications'
+                                    ? nextValue
+                                    : null,
+                              );
+                              if (!mounted) return;
+                              setState(() => userInfo[field] = nextValue);
+                              if (sheetContext.mounted &&
+                                  Navigator.of(sheetContext).canPop()) {
+                                Navigator.of(sheetContext).pop();
+                              }
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Preference enregistree'),
+                                ),
+                              );
+                            } catch (e) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Impossible de sauvegarder la preference: $e',
+                                  ),
+                                ),
+                              );
+                            } finally {
+                              if (sheetContext.mounted) {
+                                setSheetState(() => saving = false);
+                              }
+                            }
+                          },
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF7C3AED),
                     ),
-                    child: const Text('Enregistrer'),
+                    child: Text(saving ? 'Enregistrement...' : 'Enregistrer'),
                   ),
                 ),
               ],
@@ -510,83 +529,102 @@ class _ProfilePageState extends State<ProfilePage> {
     required String field,
     required List<String> options,
   }) {
+    final messenger = ScaffoldMessenger.of(context);
     final selected = Set<String>.from(userInfo[field] ?? const []);
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: options.map((item) {
-                  final active = selected.contains(item);
-                  return FilterChip(
-                    label: Text(item),
-                    selected: active,
-                    selectedColor:
-                        const Color(0xFF7C3AED).withValues(alpha: 0.2),
-                    checkmarkColor: const Color(0xFF7C3AED),
-                    onSelected: (v) => setSheetState(() {
-                      if (v) {
-                        selected.add(item);
-                      } else {
-                        selected.remove(item);
-                      }
-                    }),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    try {
-                      final updated = selected.toList()..sort();
-                      await api.updateProfile(
-                        prefs: _buildPrefsPayload(
-                          keyName: keyName,
-                          values: updated,
-                        ),
-                      );
-                      if (!mounted) return;
-                      setState(() => userInfo[field] = updated);
-                      Navigator.pop(context);
-                    } catch (_) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text('Impossible de sauvegarder ces preferences'),
-                        ),
-                      );
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
+      builder: (sheetContext) {
+        bool saving = false;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: const Text('Enregistrer'),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: options.map((item) {
+                    final active = selected.contains(item);
+                    return FilterChip(
+                      label: Text(item),
+                      selected: active,
+                      selectedColor:
+                          const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF7C3AED),
+                      onSelected: (v) => setSheetState(() {
+                        if (v) {
+                          selected.add(item);
+                        } else {
+                          selected.remove(item);
+                        }
+                      }),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            setSheetState(() => saving = true);
+                            try {
+                              final updated = selected.toList()..sort();
+                              await api.updateProfile(
+                                prefs: _buildPrefsPayload(
+                                  keyName: keyName,
+                                  values: updated,
+                                ),
+                              );
+                              if (!mounted) return;
+                              setState(() => userInfo[field] = updated);
+                              if (sheetContext.mounted &&
+                                  Navigator.of(sheetContext).canPop()) {
+                                Navigator.of(sheetContext).pop();
+                              }
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Preferences enregistrees'),
+                                ),
+                              );
+                            } catch (e) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Impossible de sauvegarder ces preferences: $e',
+                                  ),
+                                ),
+                              );
+                            } finally {
+                              if (sheetContext.mounted) {
+                                setSheetState(() => saving = false);
+                              }
+                            }
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED),
+                    ),
+                    child: Text(saving ? 'Enregistrement...' : 'Enregistrer'),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
