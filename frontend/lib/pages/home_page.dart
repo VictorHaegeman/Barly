@@ -30,15 +30,112 @@ class _HomePageState extends State<HomePage> {
     final raw = (value ?? '').toString().trim();
     if (raw.isEmpty) return null;
     switch (raw) {
+      case '€':
+      case '€€':
+      case '€€€':
+        return raw;
+      case '5 EUR':
+      case '10 EUR':
       case '20 EUR':
         return '\u20ac';
+      case '15 EUR':
+      case '25 EUR':
       case '35 EUR':
         return '\u20ac\u20ac';
+      case '30 EUR+':
+      case '40 EUR+':
       case '60 EUR+':
         return '\u20ac\u20ac\u20ac';
       default:
+        final numeric = double.tryParse(
+          raw.replaceAll(RegExp(r'[^0-9\\.]'), ''),
+        );
+        if (numeric != null) {
+          if (numeric <= 20) return '\u20ac';
+          if (numeric <= 35) return '\u20ac\u20ac';
+          return '\u20ac\u20ac\u20ac';
+        }
         return raw;
     }
+  }
+
+  String _normalizeText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('à', 'a')
+        .replaceAll('á', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('ã', 'a')
+        .replaceAll('å', 'a')
+        .replaceAll('æ', 'ae')
+        .replaceAll('ç', 'c')
+        .replaceAll('è', 'e')
+        .replaceAll('é', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('ì', 'i')
+        .replaceAll('í', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('ñ', 'n')
+        .replaceAll('ò', 'o')
+        .replaceAll('ó', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('œ', 'oe')
+        .replaceAll('ù', 'u')
+        .replaceAll('ú', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ý', 'y')
+        .replaceAll('ÿ', 'y')
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  Set<String> _keywords(Iterable<String> values) {
+    final keywords = <String>{};
+    for (final value in values) {
+      final normalized = _normalizeText(value);
+      if (normalized.isEmpty) continue;
+      for (final token in normalized.split(' ')) {
+        if (token.length < 2) continue;
+        keywords.add(token);
+        if (token.endsWith('s') && token.length > 3) {
+          keywords.add(token.substring(0, token.length - 1));
+        }
+      }
+    }
+    return keywords;
+  }
+
+  int _descriptionPreferenceScore({
+    required String description,
+    required List<String> prefAmb,
+    required List<String> prefMusic,
+    required List<String> prefDrinks,
+  }) {
+    final normalizedDescription = _normalizeText(description);
+    if (normalizedDescription.isEmpty) return 0;
+    final descriptionTokens = normalizedDescription
+        .split(' ')
+        .where((token) => token.length >= 2)
+        .toSet();
+
+    int score = 0;
+    for (final token in _keywords(prefAmb)) {
+      if (descriptionTokens.contains(token)) score += 2;
+    }
+    for (final token in _keywords(prefMusic)) {
+      if (descriptionTokens.contains(token)) score += 1;
+    }
+    for (final token in _keywords(prefDrinks)) {
+      if (descriptionTokens.contains(token)) score += 1;
+    }
+    return score;
   }
 
   @override
@@ -118,6 +215,9 @@ class _HomePageState extends State<HomePage> {
     final prefAmb = List<String>.from(preferences['ambiance'] ?? []);
     final prefMusic = List<String>.from(preferences['music'] ?? []);
     final prefDrinks = List<String>.from(preferences['drinks'] ?? []);
+    final prefAmbKeywords = _keywords(prefAmb);
+    final prefMusicKeywords = _keywords(prefMusic);
+    final prefDrinksKeywords = _keywords(prefDrinks);
     if (bars.isEmpty ||
         (prefAmb.isEmpty && prefMusic.isEmpty && prefDrinks.isEmpty)) return [];
 
@@ -125,16 +225,23 @@ class _HomePageState extends State<HomePage> {
         .map<Map<String, dynamic>>((bar) {
           final amb = List<String>.from(bar['ambiance'] ?? []);
           final music = List<String>.from(bar['music'] ?? []);
+          final description = (bar['description'] ?? '').toString();
           int score = 0;
           for (final a in amb) {
-            if (prefAmb.contains(a)) score += 3;
+            if (prefAmbKeywords.contains(_normalizeText(a))) score += 3;
           }
           for (final m in music) {
-            if (prefMusic.contains(m)) score += 2;
+            if (prefMusicKeywords.contains(_normalizeText(m))) score += 2;
           }
           for (final d in List<String>.from(bar['drinks'] ?? [])) {
-            if (prefDrinks.contains(d)) score += 1;
+            if (prefDrinksKeywords.contains(_normalizeText(d))) score += 1;
           }
+          score += _descriptionPreferenceScore(
+            description: description,
+            prefAmb: prefAmb,
+            prefMusic: prefMusic,
+            prefDrinks: prefDrinks,
+          );
           if (prefPrice != null && bar['priceLevel'] == prefPrice) score += 1;
           // léger bonus si un rating existe
           if (bar['rating'] != null) {
@@ -609,11 +716,13 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
   final descriptionCtrl = TextEditingController();
   List<String> ambiances = [];
   List<String> musics = [];
+  List<String> drinks = [];
   bool loading = false;
   final api = ApiService();
 
   final ambianceOptions = const ['Cosy', 'Dance', 'Chill', 'Lounge'];
   final musicOptions = const ['House', 'Pop', 'Jazz', 'RnB', 'Rock'];
+  final drinkOptions = const ['Cocktails', 'Bieres', 'Vins', 'Soft'];
 
   @override
   Widget build(BuildContext context) {
@@ -699,6 +808,23 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
                 );
               }).toList(),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: drinkOptions.map((opt) {
+                final selected = drinks.contains(opt);
+                return ChoiceChip(
+                  label: Text(opt),
+                  selected: selected,
+                  onSelected: (v) {
+                    setState(() {
+                      v ? drinks.add(opt) : drinks.remove(opt);
+                    });
+                  },
+                );
+              }).toList(),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: priceCtrl,
@@ -750,6 +876,7 @@ class _CreateBarDialogState extends State<_CreateBarDialog> {
         coverUrl: coverCtrl.text.isNotEmpty ? coverCtrl.text : null,
         ambiance: ambiances,
         music: musics,
+        drinks: drinks,
         priceLevel: null,
         pintPrice: priceCtrl.text.isNotEmpty ? '${priceCtrl.text} €' : null,
         description: descriptionCtrl.text,

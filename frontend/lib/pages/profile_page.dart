@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
     'ambiancePrefs': <String>[],
     'musicPrefs': <String>[],
     'drinkPrefs': <String>[],
-    'priceLevel': '10 EUR',
+    'priceLevel': '\u20ac\u20ac',
   };
 
   bool loading = true;
@@ -32,7 +32,11 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _ambianceOptions = ['Cosy', 'Dance', 'Chill', 'Lounge'];
   static const _musicOptions = ['House', 'Pop', 'Jazz', 'RnB', 'Rock'];
   static const _drinkOptions = ['Cocktails', 'Bieres', 'Vins', 'Soft'];
-  static const _presetBudgets = ['5 EUR', '10 EUR', '15 EUR'];
+  static const _presetBudgets = [
+    '\u20ac',
+    '\u20ac\u20ac',
+    '\u20ac\u20ac\u20ac'
+  ];
 
   @override
   void initState() {
@@ -539,7 +543,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!presets.contains(initial) && initial != 'Non renseigne') {
       presets.add(initial);
     }
-    String selected = presets.contains(initial) ? initial : '10 EUR';
+    String selected = presets.contains(initial) ? initial : '\u20ac\u20ac';
     bool saving = false;
     final customCtrl = TextEditingController();
     final customFocus = FocusNode();

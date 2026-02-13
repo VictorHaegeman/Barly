@@ -294,79 +294,127 @@ class _MapPageState extends State<MapPage> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
     final priceController = TextEditingController();
+    bool submitting = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter un bar'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom du bar',
-                  border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Ajouter un bar'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom du bar',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Prix (ex: 8-12€)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Prix (ex: 8-12 EUR)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  descController.text.isNotEmpty &&
-                  priceController.text.isNotEmpty) {
-                setState(() {
-                  bars.add({
-                    'id': (bars.length + 1).toString(),
-                    'name': nameController.text,
-                    'priceLevel': priceController.text,
-                    'ambiance': [descController.text],
-                    'imageUrl':
-                        'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
-                  });
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Bar ajouté (mock)')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Veuillez remplir tous les champs')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-              foregroundColor: Colors.white,
+              ],
             ),
-            child: const Text('Ajouter'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      final name = nameController.text.trim();
+                      final description = descController.text.trim();
+                      final price = priceController.text.trim();
+                      if (name.isEmpty ||
+                          description.isEmpty ||
+                          price.isEmpty) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Veuillez remplir tous les champs'),
+                          ),
+                        );
+                        return;
+                      }
+                      if (!api.isAuthenticated) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Connecte-toi pour ajouter un bar'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => submitting = true);
+                      try {
+                        final created = await api.createBar(
+                          name: name,
+                          description: description,
+                          ambiance: [description],
+                          pintPrice: price,
+                        );
+                        final newBar = {
+                          ...created,
+                          'id': created['id']?.toString(),
+                          'coverImage': created['cover_url'],
+                          'imageUrl': created['cover_url'] ??
+                              'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&h=300&fit=crop',
+                        };
+                        if (!mounted) return;
+                        setState(() => bars.insert(0, newBar));
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(content: Text('Bar ajoute')),
+                        );
+                      } catch (_) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Impossible de creer le bar (verifie ta connexion)',
+                            ),
+                          ),
+                        );
+                      } finally {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => submitting = false);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              child: submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Ajouter'),
+            ),
+          ],
+        ),
       ),
     );
   }

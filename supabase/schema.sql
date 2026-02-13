@@ -31,6 +31,7 @@ create table if not exists public.bars (
   cover_url text,
   ambiance text[] default '{}',
   music text[] default '{}',
+  drinks text[] default '{}',
   price_level text,
   pint_price text,
   rating numeric,
@@ -57,11 +58,18 @@ create table if not exists public.events (
 
 -- Compatibilite schema existant
 alter table public.events
+  add column if not exists date timestamptz,
+  add column if not exists type text,
+  add column if not exists participants uuid[] default '{}',
+  add column if not exists created_by uuid references auth.users,
   add column if not exists description text,
   add column if not exists is_private boolean default false,
   add column if not exists is_free boolean default true,
   add column if not exists ticket_price text,
   add column if not exists access_code_hash text;
+
+alter table public.bars
+  add column if not exists drinks text[] default '{}';
 
 create table if not exists public.favorites (
   user_id uuid references auth.users on delete cascade,

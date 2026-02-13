@@ -73,6 +73,7 @@ class ApiService {
         'priceLevel': map['price_level'] ?? '€',
         'ambiance': map['ambiance'] ?? [],
         'music': map['music'] ?? [],
+        'drinks': map['drinks'] ?? [],
       };
     }).toList();
   }
@@ -90,6 +91,7 @@ class ApiService {
       'priceLevel': map['price_level'] ?? '€',
       'ambiance': map['ambiance'] ?? [],
       'music': map['music'] ?? [],
+      'drinks': map['drinks'] ?? [],
     };
   }
 
@@ -172,12 +174,27 @@ class ApiService {
         return;
       } catch (_) {
         // fallback: verify hash locally if RPC not yet deployed
-        final existing = await client
-            .from('events')
-            .select('participants,access_code_hash')
-            .eq('id', id)
-            .maybeSingle();
+        Map<String, dynamic>? existing;
+        try {
+          existing = await client
+              .from('events')
+              .select('participants,access_code_hash')
+              .eq('id', id)
+              .maybeSingle();
+        } catch (error) {
+          if (_extractMissingColumnName(error) == 'access_code_hash') {
+            throw Exception(
+              'Schema Supabase events obsolete: execute supabase/schema.sql',
+            );
+          }
+          rethrow;
+        }
         final requiredHash = (existing?['access_code_hash'] ?? '').toString();
+        if (requiredHash.isEmpty) {
+          throw Exception(
+            'Schema Supabase events obsolete: execute supabase/schema.sql',
+          );
+        }
         if (requiredHash.isNotEmpty && _hashAccessCode(code) != requiredHash) {
           throw Exception('Code prive incorrect');
         }
@@ -247,30 +264,11 @@ class ApiService {
           description?.trim().isEmpty == true ? null : description?.trim(),
     };
 
-    dynamic insert;
-    try {
-      insert = await client.from('events').insert(payload).select().single();
-    } catch (_) {
-      if (isPrivate || !isFree) {
-        throw Exception(
-          'Schema Supabase events obsolete: execute supabase/schema.sql',
-        );
-      }
-      // Compatibilite schema legacy
-      final legacyPayload = Map<String, dynamic>.from(payload)
-        ..remove('is_free')
-        ..remove('ticket_price')
-        ..remove('access_code_hash')
-        ..remove('description');
-      try {
-        insert =
-            await client.from('events').insert(legacyPayload).select().single();
-      } catch (_) {
-        legacyPayload.remove('is_private');
-        insert =
-            await client.from('events').insert(legacyPayload).select().single();
-      }
-    }
+    final insert = await _insertEventWithFallback(
+      payload: payload,
+      isPrivate: isPrivate,
+      isFree: isFree,
+    );
 
     return Map<String, dynamic>.from(insert);
   }
@@ -289,9 +287,12 @@ class ApiService {
       'avatarUrl': profile?['avatar_url'],
       'phone': profile?['phone'],
       'prefs': prefs,
-      'notif_push': profile?['notif_push'] ?? true,
-      'notif_email': profile?['notif_email'] ?? false,
-      'price_level': profile?['price_level'],
+      'notif_push':
+          profile?['notif_push'] ?? user.userMetadata?['notif_push'] ?? true,
+      'notif_email':
+          profile?['notif_email'] ?? user.userMetadata?['notif_email'] ?? false,
+      'price_level':
+          profile?['price_level'] ?? user.userMetadata?['price_level'],
       'fcm_token': user.userMetadata?['fcm_token'],
     };
   }
@@ -310,26 +311,29 @@ class ApiService {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
 
-    // Màj auth (email/phone)
-    if (email != null || phone != null) {
+    final authData = <String, dynamic>{
+      if (firstName != null) 'first_name': firstName,
+      if (prefs != null) 'prefs': prefs,
+      if (priceLevel != null) 'price_level': priceLevel,
+      if (notifPush != null) 'notif_push': notifPush,
+      if (notifEmail != null) 'notif_email': notifEmail,
+      if (fcmToken != null) 'fcm_token': fcmToken,
+    };
+    if (email != null || phone != null || authData.isNotEmpty) {
       await client.auth.updateUser(
         UserAttributes(
           email: email,
           phone: phone,
-          data: {
-            if (firstName != null) 'first_name': firstName,
-            if (prefs != null) 'prefs': prefs,
-            if (fcmToken != null) 'fcm_token': fcmToken,
-          },
+          data: authData.isEmpty ? null : authData,
         ),
       );
     }
 
-    // Toujours fournir l'email (NOT NULL) pour éviter l'échec de l'upsert
-    final update = <String, dynamic>{
-      'id': user.id,
-      'email': email ?? user.email, // requirement NOT NULL
-    };
+    final update = <String, dynamic>{'id': user.id};
+    final profileEmail = email ?? user.email;
+    if (profileEmail != null && profileEmail.isNotEmpty) {
+      update['email'] = profileEmail;
+    }
     if (firstName != null) update['first_name'] = firstName;
     if (phone != null) update['phone'] = phone;
     if (avatarUrl != null) update['avatar_url'] = avatarUrl;
@@ -337,22 +341,29 @@ class ApiService {
     if (priceLevel != null) update['price_level'] = priceLevel;
     if (notifPush != null) update['notif_push'] = notifPush;
     if (notifEmail != null) update['notif_email'] = notifEmail;
-    try {
-      await _upsertUserProfileWithEmailFallback(update);
-    } on PostgrestException catch (e) {
-      final missingPrefs =
-          _isMissingColumnError(e, 'prefs') && update.containsKey('prefs');
-      final missingPrice = _isMissingColumnError(e, 'price_level') &&
-          update.containsKey('price_level');
-      if (!missingPrefs) rethrow;
-      final prefsPayload = update.remove('prefs');
-      final pricePayload = missingPrice ? update.remove('price_level') : null;
-      await _upsertUserProfileWithEmailFallback(update);
-      final meta = <String, dynamic>{};
-      if (prefsPayload != null) meta['prefs'] = prefsPayload;
-      if (pricePayload != null) meta['price_level'] = pricePayload;
-      if (meta.isNotEmpty) {
-        await client.auth.updateUser(UserAttributes(data: meta));
+
+    final removedColumns = await _upsertUserProfileWithEmailFallback(update);
+    final fallbackMeta = <String, dynamic>{};
+    if (removedColumns.containsKey('prefs')) {
+      fallbackMeta['prefs'] = removedColumns['prefs'];
+    }
+    if (removedColumns.containsKey('price_level')) {
+      fallbackMeta['price_level'] = removedColumns['price_level'];
+    }
+    if (removedColumns.containsKey('first_name')) {
+      fallbackMeta['first_name'] = removedColumns['first_name'];
+    }
+    if (removedColumns.containsKey('notif_push')) {
+      fallbackMeta['notif_push'] = removedColumns['notif_push'];
+    }
+    if (removedColumns.containsKey('notif_email')) {
+      fallbackMeta['notif_email'] = removedColumns['notif_email'];
+    }
+    if (fallbackMeta.isNotEmpty) {
+      try {
+        await client.auth.updateUser(UserAttributes(data: fallbackMeta));
+      } catch (_) {
+        // Ignore silently: profile write succeeded in users table fallback path.
       }
     }
   }
@@ -361,58 +372,84 @@ class ApiService {
     await updateProfile(fcmToken: token);
   }
 
-  Future<void> _upsertUserProfileWithEmailFallback(
+  Future<Map<String, dynamic>> _upsertUserProfileWithEmailFallback(
     Map<String, dynamic> payload,
   ) async {
-    try {
-      await client.from('users').upsert(payload);
-    } catch (error) {
-      final missingEmail =
-          _isMissingColumnError(error, 'email') && payload.containsKey('email');
-      final missingPrefs =
-          _isMissingColumnError(error, 'prefs') && payload.containsKey('prefs');
-      final missingPrice = _isMissingColumnError(error, 'price_level') &&
-          payload.containsKey('price_level');
-      if (!missingEmail && !missingPrefs && !missingPrice) rethrow;
-
-      final fallback = Map<String, dynamic>.from(payload);
-      Map<String, dynamic>? prefsPayload;
-      String? pricePayload;
-      if (missingEmail) fallback.remove('email');
-      if (missingPrefs && fallback.containsKey('prefs')) {
-        prefsPayload = Map<String, dynamic>.from(fallback['prefs']);
-        fallback.remove('prefs');
-      }
-      if (missingPrice && fallback.containsKey('price_level')) {
-        pricePayload = fallback['price_level']?.toString();
-        fallback.remove('price_level');
-      }
-      await client.from('users').upsert(fallback);
-      if (prefsPayload != null || pricePayload != null) {
-        final meta = <String, dynamic>{};
-        if (prefsPayload != null) meta['prefs'] = prefsPayload;
-        if (pricePayload != null) meta['price_level'] = pricePayload;
-        await client.auth.updateUser(
-          UserAttributes(data: meta),
-        );
+    final fallback = Map<String, dynamic>.from(payload);
+    final removed = <String, dynamic>{};
+    while (true) {
+      try {
+        await client.from('users').upsert(fallback);
+        return removed;
+      } catch (error) {
+        final missingColumn = _extractMissingColumnName(error);
+        if (missingColumn == null ||
+            missingColumn == 'id' ||
+            !fallback.containsKey(missingColumn)) {
+          rethrow;
+        }
+        removed[missingColumn] = fallback.remove(missingColumn);
       }
     }
   }
 
-  bool _isMissingColumnError(Object error, String columnName) {
-    if (error is! PostgrestException) return false;
-    final col = columnName.toLowerCase();
+  Future<Map<String, dynamic>> _insertEventWithFallback({
+    required Map<String, dynamic> payload,
+    required bool isPrivate,
+    required bool isFree,
+  }) async {
+    final fallback = Map<String, dynamic>.from(payload);
+    while (true) {
+      try {
+        final inserted =
+            await client.from('events').insert(fallback).select().single();
+        return Map<String, dynamic>.from(inserted);
+      } catch (error) {
+        final missingColumn = _extractMissingColumnName(error);
+        if (missingColumn == null || !fallback.containsKey(missingColumn)) {
+          if (isPrivate || !isFree) {
+            throw Exception(
+              'Schema Supabase events obsolete: execute supabase/schema.sql',
+            );
+          }
+          rethrow;
+        }
+        final requiresModernSchema = isPrivate &&
+                (missingColumn == 'is_private' ||
+                    missingColumn == 'access_code_hash') ||
+            (!isFree && missingColumn == 'ticket_price');
+        if (requiresModernSchema) {
+          throw Exception(
+            'Schema Supabase events obsolete: execute supabase/schema.sql',
+          );
+        }
+        fallback.remove(missingColumn);
+      }
+    }
+  }
+
+  String? _extractMissingColumnName(Object error) {
+    if (error is! PostgrestException) return null;
     final text = [
       error.message,
       error.details,
       error.hint,
       error.code,
     ].join(' ').toLowerCase();
-    return text.contains("column '$col'") ||
-        text.contains('column "$col"') ||
-        text.contains("'$col' column") ||
-        (text.contains('could not find') && text.contains("'$col'")) ||
-        text.contains(' $col ');
+    final pgrst = RegExp(r"could not find the '([a-z0-9_]+)' column");
+    final pgrstMatch = pgrst.firstMatch(text);
+    if (pgrstMatch != null) return pgrstMatch.group(1);
+
+    final relation =
+        RegExp(r'column [a-z0-9_]+\."?([a-z0-9_]+)"? does not exist');
+    final relationMatch = relation.firstMatch(text);
+    if (relationMatch != null) return relationMatch.group(1);
+
+    final generic = RegExp(r'column "?([a-z0-9_]+)"? does not exist');
+    final genericMatch = generic.firstMatch(text);
+    if (genericMatch != null) return genericMatch.group(1);
+
+    return null;
   }
 
   String _hashAccessCode(String code) {
@@ -455,27 +492,33 @@ class ApiService {
     String? coverUrl,
     List<String>? ambiance,
     List<String>? music,
+    List<String>? drinks,
     String? priceLevel,
     String? pintPrice,
     String? description,
   }) async {
     final user = client.auth.currentUser;
     if (user == null) throw Exception('Unauthenticated');
-    final row = await client
-        .from('bars')
-        .insert({
-          'name': name,
-          'address': address,
-          'cover_url': coverUrl,
-          'ambiance': ambiance ?? [],
-          'music': music ?? [],
-          'price_level': priceLevel,
-          'pint_price': pintPrice,
-          'description': description,
-          'created_at': DateTime.now().toIso8601String(),
-        })
-        .select()
-        .single();
+    final payload = {
+      'name': name,
+      'address': address,
+      'cover_url': coverUrl,
+      'ambiance': ambiance ?? [],
+      'music': music ?? [],
+      'drinks': drinks ?? [],
+      'price_level': priceLevel,
+      'pint_price': pintPrice,
+      'description': description,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    dynamic row;
+    try {
+      row = await client.from('bars').insert(payload).select().single();
+    } catch (error) {
+      if (_extractMissingColumnName(error) != 'drinks') rethrow;
+      final fallback = Map<String, dynamic>.from(payload)..remove('drinks');
+      row = await client.from('bars').insert(fallback).select().single();
+    }
     return Map<String, dynamic>.from(row);
   }
 }
