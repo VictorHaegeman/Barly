@@ -116,7 +116,7 @@ Le script valide: `key.properties`, `MAPS_API_KEY`, `JAVA_HOME`, `java`, `flutte
   - `SUPABASE_ANON_KEY`
 
 ## iOS preprod/prod checklist
-- Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).
+- Verifier que `PRODUCT_BUNDLE_IDENTIFIER` final est bien celui du compte Apple Developer (`com.barly.app` ou le votre).
 - Ajouter `GoogleService-Info.plist` (Firebase) dans `frontend/ios/Runner/`.
 - Activer Push Notifications + Background Modes (Remote notifications) dans Signing & Capabilities.
 - Verifier signature Release (Team, provisioning profile, certificat distribution).
