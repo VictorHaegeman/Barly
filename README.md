@@ -100,6 +100,19 @@ Usage:
 3. `publish_to_play=false` pour uniquement generer l'AAB.
 4. `publish_to_play=true` + `play_track=internal|alpha|beta|production` pour publier automatiquement.
 
+### Preflight local Android (avant release)
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/check_android_release_prereqs.ps1
+```
+Le script valide: `key.properties`, `MAPS_API_KEY`, `JAVA_HOME`, `java`, `flutter`.
+
+## Supabase hardening monitoring
+- Workflow: `.github/workflows/supabase-hardening-verify.yml`
+- Lance manuellement ou hebdomadairement.
+- Secrets requis:
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+
 ## iOS preprod/prod checklist
 - Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).
 - Ajouter `GoogleService-Info.plist` (Firebase) dans `frontend/ios/Runner/`.
