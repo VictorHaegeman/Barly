@@ -99,6 +99,8 @@ Usage:
 2. Lancer `Run workflow`.
 3. `publish_to_play=false` pour uniquement generer l'AAB.
 4. `publish_to_play=true` + `play_track=internal|alpha|beta|production` pour publier automatiquement.
+Note: en CI, `ANDROID_MAPS_API_KEY` est injectee comme propriete Gradle
+(`ORG_GRADLE_PROJECT_MAPS_API_KEY`), sans ecraser `android/local.properties`.
 
 ### Preflight local Android (avant release)
 ```bash

@@ -57,14 +57,13 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           storeFile=upload-keystore.jks
           EOF
-          cat > android/local.properties <<EOF
-          MAPS_API_KEY=${{ secrets.ANDROID_MAPS_API_KEY }}
-          EOF
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build signed Android App Bundle
+        env:
+          ORG_GRADLE_PROJECT_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
         run: |
           flutter build appbundle --release \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
