@@ -81,6 +81,25 @@ flutter build appbundle --release \
 ```
 5. Uploader `frontend/build/app/outputs/bundle/release/app-release.aab` dans Google Play Console.
 
+### Option CI/CD Android (workflow manuel)
+Workflow: `.github/workflows/android-release.yml`
+
+Secrets GitHub requis:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `ANDROID_MAPS_API_KEY`
+- `ANDROID_UPLOAD_KEYSTORE_BASE64` (keystore `.jks` encode en base64)
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `PLAY_SERVICE_ACCOUNT_JSON` (uniquement si upload auto Play active)
+
+Usage:
+1. Ouvrir GitHub Actions -> `Android Release (AAB)`.
+2. Lancer `Run workflow`.
+3. `publish_to_play=false` pour uniquement generer l'AAB.
+4. `publish_to_play=true` + `play_track=internal|alpha|beta|production` pour publier automatiquement.
+
 ## iOS preprod/prod checklist
 - Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).
 - Ajouter `GoogleService-Info.plist` (Firebase) dans `frontend/ios/Runner/`.
