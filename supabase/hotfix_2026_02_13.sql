@@ -33,7 +33,21 @@ create policy "events read" on public.events
   );
 
 -- Prevent direct client reads of private access hashes.
-revoke select (access_code_hash) on public.events from anon, authenticated;
+revoke select on public.events from anon, authenticated;
+grant select (
+  id,
+  bar_id,
+  title,
+  date,
+  description,
+  type,
+  is_private,
+  is_free,
+  ticket_price,
+  participants,
+  created_by,
+  created_at
+) on public.events to anon, authenticated;
 grant select (access_code_hash) on public.events to service_role;
 
 -- 3) Rate-limit helper table for private event join attempts.
@@ -87,7 +101,7 @@ create or replace function public.join_private_event(p_event_id uuid, p_code tex
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   uid uuid := auth.uid();
@@ -95,7 +109,7 @@ declare
   failed_count int := 0;
   blocked_until_ts timestamptz;
   code_md5 text := md5(coalesce(p_code, ''));
-  code_sha256 text := encode(digest(convert_to(coalesce(p_code, ''), 'UTF8'), 'sha256'), 'hex');
+  code_sha256 text := encode(extensions.digest(convert_to(coalesce(p_code, ''), 'UTF8'), 'sha256'), 'hex');
 begin
   if uid is null then
     raise exception 'not authenticated';
