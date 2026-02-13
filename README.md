@@ -18,11 +18,13 @@ flutter run \
 - `SUPABASE_ANON_KEY`/`sb_publishable` peut etre exposee cote client.
 - Les migrations SQL de securite sont dans `supabase/schema.sql` et `supabase/preprod_hardening_2026_02_13.sql`.
 - Patch critique prod (si RPC prive ou hash exposes): `supabase/prod_critical_fix_2026_02_13.sql`.
+- Audit SQL read-only: `supabase/prod_readiness_check_2026_02_13.sql` (`all_green` doit etre `true`).
 - Verification automatique post-migration:
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/verify_supabase_hardening.ps1 \
   -SupabaseUrl https://<project-ref>.supabase.co \
-  -AnonKey <sb_publishable_or_anon_key>
+  -AnonKey <sb_publishable_or_anon_key> \
+  -FailOnCheck
 ```
 
 ## Démarrer en 2 commandes (dev mock ou Mongo)
