@@ -17,12 +17,20 @@ drop policy if exists "events insert auth" on public.events;
 drop policy if exists "events update auth" on public.events;
 drop policy if exists "events insert owner" on public.events;
 drop policy if exists "events update owner" on public.events;
+drop policy if exists "events read" on public.events;
 
 create policy "events insert owner" on public.events
   for insert with check (auth.uid() is not null and created_by = auth.uid());
 
 create policy "events update owner" on public.events
   for update using (created_by = auth.uid()) with check (created_by = auth.uid());
+
+create policy "events read" on public.events
+  for select using (
+    is_private = false
+    or created_by = auth.uid()
+    or auth.uid() = any(coalesce(participants, '{}'::uuid[]))
+  );
 
 -- Prevent direct client reads of private access hashes.
 revoke select (access_code_hash) on public.events from anon, authenticated;
@@ -87,7 +95,7 @@ declare
   failed_count int := 0;
   blocked_until_ts timestamptz;
   code_md5 text := md5(coalesce(p_code, ''));
-  code_sha256 text := encode(digest(coalesce(p_code, ''), 'sha256'), 'hex');
+  code_sha256 text := encode(digest(convert_to(coalesce(p_code, ''), 'UTF8'), 'sha256'), 'hex');
 begin
   if uid is null then
     raise exception 'not authenticated';
