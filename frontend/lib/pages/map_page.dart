@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/api_service.dart';
@@ -20,7 +21,12 @@ class _MapPageState extends State<MapPage> {
   bool loading = true;
   GoogleMapController? mapController;
 
-  bool get _useGoogleMap => GoogleMapsConfig.apiKey.isNotEmpty;
+  bool get _useGoogleMap {
+    // On mobile, native keys are configured at platform level.
+    // On web, the JS API key must be provided.
+    if (kIsWeb) return GoogleMapsConfig.apiKey.isNotEmpty;
+    return true;
+  }
 
   @override
   void initState() {

@@ -11,3 +11,4 @@ supabase/.temp/
 _tmp_*.ps1
 frontend/android/key.properties
 frontend/android/local.properties
+frontend/web/maps_config.js

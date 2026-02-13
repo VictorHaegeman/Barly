@@ -32,8 +32,22 @@
   <title>Barly</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Google Maps JS (web) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDbedbznWQWcCUVsrHxSJhjUwEJmDj_q3c&libraries=places"></script>
+  <!-- Optional runtime config (not committed): web/maps_config.js -->
+  <script src="maps_config.js"></script>
+  <script>
+    (function() {
+      var key =
+        (window.__BARLY_CONFIG__ && window.__BARLY_CONFIG__.googleMapsWebApiKey) || '';
+      if (!key) return;
+      var script = document.createElement('script');
+      script.src =
+        'https://maps.googleapis.com/maps/api/js?key=' +
+        encodeURIComponent(key) +
+        '&libraries=places';
+      script.async = true;
+      document.head.appendChild(script);
+    })();
+  </script>
 
   <script>
     // The value below is injected by flutter build, do not touch.

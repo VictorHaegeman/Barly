@@ -1,10 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../config/google_maps_config.dart';
 
 class GoogleMapsService {
-  static const String _apiKey = GoogleMapsConfig.apiKey;
-
   static GoogleMapController? _controller;
 
   // Coordonnées par défaut (Paris)
@@ -70,7 +66,4 @@ class GoogleMapsService {
   static void setController(GoogleMapController controller) {
     _controller = controller;
   }
-
-  // Obtenir la clé API (à configurer dans votre environnement)
-  static String get apiKey => _apiKey;
 }

@@ -11,12 +11,20 @@ cd frontend
 flutter pub get
 flutter run \
   --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key>
+  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key> \
+  --dart-define=GOOGLE_MAPS_WEB_API_KEY=<optional_web_key>
 ```
 
 - Ne jamais committer `service_role` dans le repo.
 - `SUPABASE_ANON_KEY`/`sb_publishable` peut etre exposee cote client.
 - Les migrations SQL de securite sont dans `supabase/schema.sql` et `supabase/preprod_hardening_2026_02_13.sql`.
+- Patch critique prod (si RPC prive ou hash exposes): `supabase/prod_critical_fix_2026_02_13.sql`.
+- Verification automatique post-migration:
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/verify_supabase_hardening.ps1 \
+  -SupabaseUrl https://<project-ref>.supabase.co \
+  -AnonKey <sb_publishable_or_anon_key>
+```
 
 ## Démarrer en 2 commandes (dev mock ou Mongo)
 1) Backend (port 3001)
@@ -42,9 +50,16 @@ flutter run --dart-define=BARLY_API=http://localhost:3001
 - `ALLOWED_ORIGINS` (liste séparée par virgule pour le CORS)
 
 ## Google Maps
-- Remplacez `YOUR_GOOGLE_MAPS_API_KEY` dans `frontend/lib/config/google_maps_config.dart`.
-- Android : meta-data dans `android/app/src/main/AndroidManifest.xml`
-- iOS : `GMSServices.provideAPIKey` dans `ios/Runner/AppDelegate.swift`
+- Web: copier `frontend/web/maps_config.example.js` vers `frontend/web/maps_config.js` puis definir `googleMapsWebApiKey`.
+- Android: definir `MAPS_API_KEY` dans `frontend/android/local.properties` (non committe).
+- iOS: definir `GMS_API_KEY` dans Xcode Build Settings ou xcconfig local (non committe).
+
+## iOS preprod/prod checklist
+- Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).
+- Ajouter `GoogleService-Info.plist` (Firebase) dans `frontend/ios/Runner/`.
+- Activer Push Notifications + Background Modes (Remote notifications) dans Signing & Capabilities.
+- Verifier signature Release (Team, provisioning profile, certificat distribution).
+- Incrémenter la version dans `frontend/pubspec.yaml` avant release.
 
 ## Endpoints principaux
 - `POST /api/auth/register` { firstName, email, password, preferences }
