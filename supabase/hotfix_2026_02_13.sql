@@ -33,7 +33,7 @@ create policy "events read" on public.events
   );
 
 -- Prevent direct client reads of private access hashes.
-revoke select on public.events from anon, authenticated;
+revoke select on public.events from public, anon, authenticated;
 grant select (
   id,
   bar_id,
@@ -127,7 +127,7 @@ begin
   end if;
 
   execute format(
-    'select encode(%I.digest(convert_to($1, ''UTF8''), ''sha256''), ''hex'')',
+    'select encode(%I.digest(convert_to($1, ''UTF8''), ''sha256''::text), ''hex'')',
     pgcrypto_schema
   )
   into code_sha256

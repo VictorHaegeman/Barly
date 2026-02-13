@@ -8,3 +8,6 @@
 
 # ---- LOCAL TOOLS ----
 supabase/.temp/
+_tmp_*.ps1
+frontend/android/key.properties
+frontend/android/local.properties

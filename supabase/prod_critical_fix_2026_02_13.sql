@@ -1,14 +1,12 @@
--- Preprod security hardening - 2026-02-13
--- Run in Supabase SQL Editor (Primary Database, role postgres)
+-- Production critical fix - 2026-02-13
+-- Run in Supabase SQL Editor (Primary Database, role postgres).
+-- Purpose:
+-- 1) Hide events.access_code_hash from anon/authenticated clients.
+-- 2) Recreate join_private_event with a deterministic SHA-256 call.
 
 create extension if not exists pgcrypto;
 
--- Ensure required schema columns.
-alter table public.events
-  add column if not exists created_by uuid references auth.users,
-  add column if not exists access_code_hash text;
-
--- Harden events RLS policies.
+-- Keep RLS ownership/read policies in the expected state.
 drop policy if exists "events insert auth" on public.events;
 drop policy if exists "events update auth" on public.events;
 drop policy if exists "events insert owner" on public.events;
@@ -28,7 +26,7 @@ create policy "events read" on public.events
     or auth.uid() = any(coalesce(participants, '{}'::uuid[]))
   );
 
--- Prevent direct client reads of private access hashes.
+-- Critical: remove broad table-level reads and re-grant only safe columns.
 revoke select on public.events from public, anon, authenticated;
 grant select (
   id,
@@ -46,7 +44,6 @@ grant select (
 ) on public.events to anon, authenticated;
 grant select (access_code_hash) on public.events to service_role;
 
--- Track repeated failed attempts on private event joins.
 create table if not exists public.private_event_join_attempts (
   event_id uuid not null references public.events on delete cascade,
   user_id uuid not null references auth.users on delete cascade,
@@ -57,46 +54,6 @@ create table if not exists public.private_event_join_attempts (
 );
 alter table public.private_event_join_attempts enable row level security;
 
--- Replace join_event with SECURITY DEFINER to avoid direct UPDATE grants.
-create or replace function public.join_event(p_event_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  uid uuid := auth.uid();
-  event_is_private boolean;
-begin
-  if uid is null then
-    raise exception 'not authenticated';
-  end if;
-
-  select is_private
-  into event_is_private
-  from public.events
-  where id = p_event_id;
-
-  if event_is_private then
-    raise exception 'private event requires code';
-  end if;
-
-  update public.events
-    set participants = array(
-      select distinct unnest(coalesce(participants, '{}')::uuid[])
-      union
-      select uid
-    )
-  where id = p_event_id;
-end;
-$$;
-
-grant execute on function public.join_event(uuid) to authenticated;
-
--- Replace join_private_event with:
--- - SECURITY DEFINER
--- - SHA256 support (with md5 backward compatibility)
--- - basic anti brute-force lock (5 tries => 15 minutes)
 create or replace function public.join_private_event(p_event_id uuid, p_code text)
 returns void
 language plpgsql
@@ -106,7 +63,6 @@ as $$
 declare
   uid uuid := auth.uid();
   required_hash text;
-  failed_count int := 0;
   blocked_until_ts timestamptz;
   code_md5 text := md5(coalesce(p_code, ''));
   code_sha256 text;
@@ -133,8 +89,8 @@ begin
   into code_sha256
   using coalesce(p_code, '');
 
-  select failed_attempts, blocked_until
-  into failed_count, blocked_until_ts
+  select blocked_until
+  into blocked_until_ts
   from public.private_event_join_attempts
   where event_id = p_event_id
     and user_id = uid;
@@ -194,52 +150,3 @@ end;
 $$;
 
 grant execute on function public.join_private_event(uuid, text) to authenticated;
-
--- Harden avatars storage policies (scoped to auth.uid() prefix).
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
-
-do $$
-begin
-  begin
-    execute 'drop policy if exists "avatars public read" on storage.objects';
-    execute 'drop policy if exists "avatars auth insert" on storage.objects';
-    execute 'drop policy if exists "avatars auth update" on storage.objects';
-    execute 'drop policy if exists "avatars auth delete" on storage.objects';
-
-    execute 'create policy "avatars public read" on storage.objects
-      for select using (bucket_id = ''avatars'')';
-
-    execute 'create policy "avatars auth insert" on storage.objects
-      for insert with check (
-        bucket_id = ''avatars''
-        and auth.role() = ''authenticated''
-        and name like auth.uid()::text || ''/%''
-      )';
-
-    execute 'create policy "avatars auth update" on storage.objects
-      for update using (
-        bucket_id = ''avatars''
-        and auth.role() = ''authenticated''
-        and name like auth.uid()::text || ''/%''
-      )
-      with check (
-        bucket_id = ''avatars''
-        and auth.role() = ''authenticated''
-        and name like auth.uid()::text || ''/%''
-      )';
-
-    execute 'create policy "avatars auth delete" on storage.objects
-      for delete using (
-        bucket_id = ''avatars''
-        and auth.role() = ''authenticated''
-        and name like auth.uid()::text || ''/%''
-      )';
-  exception
-    when insufficient_privilege then
-      raise notice 'Storage policies not updated from SQL (insufficient privilege): %', sqlerrm;
-    when others then
-      raise notice 'Storage policies not updated from SQL: %', sqlerrm;
-  end;
-end $$;
