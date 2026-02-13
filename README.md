@@ -59,6 +59,28 @@ flutter run --dart-define=BARLY_API=http://localhost:3001
 - Workflow iOS sans signature: `.github/workflows/flutter-ios.yml`
 - Il valide la compilation release (`flutter build ios --no-codesign`) sur macOS.
 
+## Android prod (Play Store)
+1. Creer un keystore d'upload (une seule fois):
+```bash
+keytool -genkeypair -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+2. Copier `frontend/android/key.properties.example` en `frontend/android/key.properties` puis renseigner:
+- `storeFile`
+- `storePassword`
+- `keyAlias`
+- `keyPassword`
+3. Renseigner `MAPS_API_KEY` dans `frontend/android/local.properties`.
+4. Builder l'AAB release:
+```bash
+cd frontend
+flutter clean
+flutter pub get
+flutter build appbundle --release \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key>
+```
+5. Uploader `frontend/build/app/outputs/bundle/release/app-release.aab` dans Google Play Console.
+
 ## iOS preprod/prod checklist
 - Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).
 - Ajouter `GoogleService-Info.plist` (Firebase) dans `frontend/ios/Runner/`.
