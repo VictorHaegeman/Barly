@@ -63,7 +63,12 @@ with
       (select regproc is not null from fn) as join_private_event_exists,
       coalesce(
         (
-          select position('sha256''::text' in body) > 0
+          select
+            position('sha256''::text' in body) > 0
+            or (
+              position('digest(' in lower(body)) > 0
+              and position('sha256' in lower(body)) > 0
+            )
           from fn_def
         ),
         false
