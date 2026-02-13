@@ -1,6 +1,7 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/recommendation_service.dart';
 import 'bar_detail_page.dart';
 import 'all_bars_page.dart';
 import 'all_events_page.dart';
@@ -25,118 +26,6 @@ class _HomePageState extends State<HomePage> {
   String? prefPrice;
   List<Map<String, dynamic>> recommended = [];
   bool loading = true;
-
-  String? _normalizeProfilePriceLevel(dynamic value) {
-    final raw = (value ?? '').toString().trim();
-    if (raw.isEmpty) return null;
-    switch (raw) {
-      case '€':
-      case '€€':
-      case '€€€':
-        return raw;
-      case '5 EUR':
-      case '10 EUR':
-      case '20 EUR':
-        return '\u20ac';
-      case '15 EUR':
-      case '25 EUR':
-      case '35 EUR':
-        return '\u20ac\u20ac';
-      case '30 EUR+':
-      case '40 EUR+':
-      case '60 EUR+':
-        return '\u20ac\u20ac\u20ac';
-      default:
-        final numeric = double.tryParse(
-          raw.replaceAll(RegExp(r'[^0-9\\.]'), ''),
-        );
-        if (numeric != null) {
-          if (numeric <= 20) return '\u20ac';
-          if (numeric <= 35) return '\u20ac\u20ac';
-          return '\u20ac\u20ac\u20ac';
-        }
-        return raw;
-    }
-  }
-
-  String _normalizeText(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll('à', 'a')
-        .replaceAll('á', 'a')
-        .replaceAll('â', 'a')
-        .replaceAll('ä', 'a')
-        .replaceAll('ã', 'a')
-        .replaceAll('å', 'a')
-        .replaceAll('æ', 'ae')
-        .replaceAll('ç', 'c')
-        .replaceAll('è', 'e')
-        .replaceAll('é', 'e')
-        .replaceAll('ê', 'e')
-        .replaceAll('ë', 'e')
-        .replaceAll('ì', 'i')
-        .replaceAll('í', 'i')
-        .replaceAll('î', 'i')
-        .replaceAll('ï', 'i')
-        .replaceAll('ñ', 'n')
-        .replaceAll('ò', 'o')
-        .replaceAll('ó', 'o')
-        .replaceAll('ô', 'o')
-        .replaceAll('ö', 'o')
-        .replaceAll('õ', 'o')
-        .replaceAll('œ', 'oe')
-        .replaceAll('ù', 'u')
-        .replaceAll('ú', 'u')
-        .replaceAll('û', 'u')
-        .replaceAll('ü', 'u')
-        .replaceAll('ý', 'y')
-        .replaceAll('ÿ', 'y')
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  Set<String> _keywords(Iterable<String> values) {
-    final keywords = <String>{};
-    for (final value in values) {
-      final normalized = _normalizeText(value);
-      if (normalized.isEmpty) continue;
-      for (final token in normalized.split(' ')) {
-        if (token.length < 2) continue;
-        keywords.add(token);
-        if (token.endsWith('s') && token.length > 3) {
-          keywords.add(token.substring(0, token.length - 1));
-        }
-      }
-    }
-    return keywords;
-  }
-
-  int _descriptionPreferenceScore({
-    required String description,
-    required List<String> prefAmb,
-    required List<String> prefMusic,
-    required List<String> prefDrinks,
-  }) {
-    final normalizedDescription = _normalizeText(description);
-    if (normalizedDescription.isEmpty) return 0;
-    final descriptionTokens = normalizedDescription
-        .split(' ')
-        .where((token) => token.length >= 2)
-        .toSet();
-
-    int score = 0;
-    for (final token in _keywords(prefAmb)) {
-      if (descriptionTokens.contains(token)) score += 2;
-    }
-    for (final token in _keywords(prefMusic)) {
-      if (descriptionTokens.contains(token)) score += 1;
-    }
-    for (final token in _keywords(prefDrinks)) {
-      if (descriptionTokens.contains(token)) score += 1;
-    }
-    return score;
-  }
 
   @override
   void initState() {
@@ -204,7 +93,8 @@ class _HomePageState extends State<HomePage> {
       final me = await api.getMe();
       if (me != null) {
         preferences = Map<String, dynamic>.from(me['prefs'] ?? preferences);
-        prefPrice = _normalizeProfilePriceLevel(me['price_level']);
+        prefPrice =
+            RecommendationService.normalizeProfilePriceLevel(me['price_level']);
       }
     } catch (_) {
       // si non connecté on garde des préférences vides
@@ -212,49 +102,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Map<String, dynamic>> _computeRecommendations() {
-    final prefAmb = List<String>.from(preferences['ambiance'] ?? []);
-    final prefMusic = List<String>.from(preferences['music'] ?? []);
-    final prefDrinks = List<String>.from(preferences['drinks'] ?? []);
-    final prefAmbKeywords = _keywords(prefAmb);
-    final prefMusicKeywords = _keywords(prefMusic);
-    final prefDrinksKeywords = _keywords(prefDrinks);
-    if (bars.isEmpty ||
-        (prefAmb.isEmpty && prefMusic.isEmpty && prefDrinks.isEmpty)) return [];
-
-    final scored = bars
-        .map<Map<String, dynamic>>((bar) {
-          final amb = List<String>.from(bar['ambiance'] ?? []);
-          final music = List<String>.from(bar['music'] ?? []);
-          final description = (bar['description'] ?? '').toString();
-          int score = 0;
-          for (final a in amb) {
-            if (prefAmbKeywords.contains(_normalizeText(a))) score += 3;
-          }
-          for (final m in music) {
-            if (prefMusicKeywords.contains(_normalizeText(m))) score += 2;
-          }
-          for (final d in List<String>.from(bar['drinks'] ?? [])) {
-            if (prefDrinksKeywords.contains(_normalizeText(d))) score += 1;
-          }
-          score += _descriptionPreferenceScore(
-            description: description,
-            prefAmb: prefAmb,
-            prefMusic: prefMusic,
-            prefDrinks: prefDrinks,
-          );
-          if (prefPrice != null && bar['priceLevel'] == prefPrice) score += 1;
-          // léger bonus si un rating existe
-          if (bar['rating'] != null) {
-            final r = double.tryParse(bar['rating'].toString()) ?? 0;
-            score += r.round();
-          }
-          return {...bar, '_score': score};
-        })
-        .where((b) => (b['_score'] as int) > 0)
-        .toList();
-
-    scored.sort((a, b) => (b['_score'] as int).compareTo(a['_score'] as int));
-    return scored.take(5).toList();
+    return RecommendationService.computeRecommendations(
+      bars: bars,
+      preferences: preferences,
+      prefPrice: prefPrice,
+      limit: 5,
+    );
   }
 
   Widget _matchBadge(Map<String, dynamic> bar) {

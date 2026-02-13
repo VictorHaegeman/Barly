@@ -1,18 +1,14 @@
--- Hotfix migration - 2026-02-13
+-- Preprod security hardening - 2026-02-13
 -- Run in Supabase SQL Editor (Primary Database, role postgres)
--- This script is idempotent and includes preprod hardening.
 
 create extension if not exists pgcrypto;
 
--- 1) Missing columns discovered on production project.
+-- Ensure required schema columns.
 alter table public.events
   add column if not exists created_by uuid references auth.users,
   add column if not exists access_code_hash text;
 
-alter table public.bars
-  add column if not exists drinks text[] default '{}'::text[];
-
--- 2) Harden events RLS policies.
+-- Harden events RLS policies.
 drop policy if exists "events insert auth" on public.events;
 drop policy if exists "events update auth" on public.events;
 drop policy if exists "events insert owner" on public.events;
@@ -28,7 +24,7 @@ create policy "events update owner" on public.events
 revoke select (access_code_hash) on public.events from anon, authenticated;
 grant select (access_code_hash) on public.events to service_role;
 
--- 3) Rate-limit helper table for private event join attempts.
+-- Track repeated failed attempts on private event joins.
 create table if not exists public.private_event_join_attempts (
   event_id uuid not null references public.events on delete cascade,
   user_id uuid not null references auth.users on delete cascade,
@@ -39,7 +35,7 @@ create table if not exists public.private_event_join_attempts (
 );
 alter table public.private_event_join_attempts enable row level security;
 
--- 4) Ensure secure RPCs.
+-- Replace join_event with SECURITY DEFINER to avoid direct UPDATE grants.
 create or replace function public.join_event(p_event_id uuid)
 returns void
 language plpgsql
@@ -75,6 +71,10 @@ $$;
 
 grant execute on function public.join_event(uuid) to authenticated;
 
+-- Replace join_private_event with:
+-- - SECURITY DEFINER
+-- - SHA256 support (with md5 backward compatibility)
+-- - basic anti brute-force lock (5 tries => 15 minutes)
 create or replace function public.join_private_event(p_event_id uuid, p_code text)
 returns void
 language plpgsql
@@ -155,7 +155,7 @@ $$;
 
 grant execute on function public.join_private_event(uuid, text) to authenticated;
 
--- 5) Ensure storage RLS + scoped avatars policies.
+-- Harden avatars storage policies (scoped to auth.uid() prefix).
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do nothing;

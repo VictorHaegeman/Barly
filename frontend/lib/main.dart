@@ -23,7 +23,7 @@ Future<void> main() async {
     throw PlatformException(
         code: 'missing-supabase-keys',
         message:
-            'Définis SUPABASE_URL et SUPABASE_ANON_KEY via --dart-define ou dans lib/config/supabase_options.dart');
+            'Define SUPABASE_URL and SUPABASE_ANON_KEY via --dart-define.');
   }
   await SupabaseService.init(url: url, anonKey: key);
   // FCM : activable via --dart-define=ENABLE_PUSH=true

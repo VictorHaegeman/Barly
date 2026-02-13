@@ -172,38 +172,10 @@ class ApiService {
           'p_code': code,
         });
         return;
-      } catch (_) {
-        // fallback: verify hash locally if RPC not yet deployed
-        Map<String, dynamic>? existing;
-        try {
-          existing = await client
-              .from('events')
-              .select('participants,access_code_hash')
-              .eq('id', id)
-              .maybeSingle();
-        } catch (error) {
-          if (_extractMissingColumnName(error) == 'access_code_hash') {
-            throw Exception(
-              'Schema Supabase events obsolete: execute supabase/schema.sql',
-            );
-          }
-          rethrow;
-        }
-        final requiredHash = (existing?['access_code_hash'] ?? '').toString();
-        if (requiredHash.isEmpty) {
-          throw Exception(
-            'Schema Supabase events obsolete: execute supabase/schema.sql',
-          );
-        }
-        if (requiredHash.isNotEmpty && _hashAccessCode(code) != requiredHash) {
-          throw Exception('Code prive incorrect');
-        }
-        final current = List<String>.from(existing?['participants'] ?? []);
-        if (!current.contains(user.id)) current.add(user.id);
-        await client
-            .from('events')
-            .update({'participants': current}).eq('id', id);
-        return;
+      } catch (error) {
+        throw Exception(
+          'Join prive indisponible: deploie/valide la RPC join_private_event (details: $error)',
+        );
       }
     }
 
@@ -211,18 +183,10 @@ class ApiService {
     try {
       await client.rpc('join_event', params: {'p_event_id': id});
       return;
-    } catch (_) {
-      // fallback: append participants localement
-      final existing = await client
-          .from('events')
-          .select('participants')
-          .eq('id', id)
-          .maybeSingle();
-      final current = List<String>.from(existing?['participants'] ?? []);
-      if (!current.contains(user.id)) current.add(user.id);
-      await client
-          .from('events')
-          .update({'participants': current}).eq('id', id);
+    } catch (error) {
+      throw Exception(
+        'Join public indisponible: deploie/valide la RPC join_event (details: $error)',
+      );
     }
   }
 
@@ -453,7 +417,7 @@ class ApiService {
   }
 
   String _hashAccessCode(String code) {
-    return md5.convert(utf8.encode(code)).toString();
+    return sha256.convert(utf8.encode(code)).toString();
   }
 
   Future<void> sendPhoneOtp(String phone) async {

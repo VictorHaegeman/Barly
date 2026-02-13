@@ -2,6 +2,22 @@
 
 Application type « Sway » : API Express + frontend Flutter multi-plateforme.
 
+## Supabase (mode actuel de l'app)
+Le frontend Flutter utilise Supabase pour auth/data/storage.
+
+### Lancer le frontend avec des cles injectees (obligatoire)
+```bash
+cd frontend
+flutter pub get
+flutter run \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key>
+```
+
+- Ne jamais committer `service_role` dans le repo.
+- `SUPABASE_ANON_KEY`/`sb_publishable` peut etre exposee cote client.
+- Les migrations SQL de securite sont dans `supabase/schema.sql` et `supabase/preprod_hardening_2026_02_13.sql`.
+
 ## Démarrer en 2 commandes (dev mock ou Mongo)
 1) Backend (port 3001)
 ```bash

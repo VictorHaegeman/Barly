@@ -16,16 +16,36 @@ begin
     execute 'drop policy if exists "avatars public read" on storage.objects';
     execute 'drop policy if exists "avatars auth insert" on storage.objects';
     execute 'drop policy if exists "avatars auth update" on storage.objects';
+    execute 'drop policy if exists "avatars auth delete" on storage.objects';
 
     execute 'create policy "avatars public read" on storage.objects
       for select using (bucket_id = ''avatars'')';
 
     execute 'create policy "avatars auth insert" on storage.objects
-      for insert with check (bucket_id = ''avatars'' and auth.role() = ''authenticated'')';
+      for insert with check (
+        bucket_id = ''avatars''
+        and auth.role() = ''authenticated''
+        and name like auth.uid()::text || ''/%''
+      )';
 
     execute 'create policy "avatars auth update" on storage.objects
-      for update using (bucket_id = ''avatars'' and auth.role() = ''authenticated'')
-      with check (bucket_id = ''avatars'' and auth.role() = ''authenticated'')';
+      for update using (
+        bucket_id = ''avatars''
+        and auth.role() = ''authenticated''
+        and name like auth.uid()::text || ''/%''
+      )
+      with check (
+        bucket_id = ''avatars''
+        and auth.role() = ''authenticated''
+        and name like auth.uid()::text || ''/%''
+      )';
+
+    execute 'create policy "avatars auth delete" on storage.objects
+      for delete using (
+        bucket_id = ''avatars''
+        and auth.role() = ''authenticated''
+        and name like auth.uid()::text || ''/%''
+      )';
   exception
     when insufficient_privilege then
       raise notice 'Storage policies not updated from SQL (insufficient privilege): %', sqlerrm;

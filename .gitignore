@@ -5,3 +5,6 @@
 
 # ---- DEPS ----
 **/node_modules/
+
+# ---- LOCAL TOOLS ----
+supabase/.temp/
