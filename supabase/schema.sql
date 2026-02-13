@@ -193,11 +193,29 @@ declare
   failed_count int := 0;
   blocked_until_ts timestamptz;
   code_md5 text := md5(coalesce(p_code, ''));
-  code_sha256 text := encode(extensions.digest(convert_to(coalesce(p_code, ''), 'UTF8'), 'sha256'), 'hex');
+  code_sha256 text;
+  pgcrypto_schema text;
 begin
   if uid is null then
     raise exception 'not authenticated';
   end if;
+
+  select n.nspname
+  into pgcrypto_schema
+  from pg_extension e
+  join pg_namespace n on n.oid = e.extnamespace
+  where e.extname = 'pgcrypto';
+
+  if pgcrypto_schema is null then
+    raise exception 'pgcrypto extension not installed';
+  end if;
+
+  execute format(
+    'select encode(%I.digest(convert_to($1, ''UTF8''), ''sha256''), ''hex'')',
+    pgcrypto_schema
+  )
+  into code_sha256
+  using coalesce(p_code, '');
 
   select failed_attempts, blocked_until
   into failed_count, blocked_until_ts
