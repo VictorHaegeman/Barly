@@ -11,8 +11,7 @@ cd frontend
 flutter pub get
 flutter run \
   --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key> \
-  --dart-define=GOOGLE_MAPS_WEB_API_KEY=<optional_web_key>
+  --dart-define=SUPABASE_ANON_KEY=<sb_publishable_or_anon_key>
 ```
 
 - Ne jamais committer `service_role` dans le repo.
@@ -53,6 +52,10 @@ flutter run --dart-define=BARLY_API=http://localhost:3001
 - Web: copier `frontend/web/maps_config.example.js` vers `frontend/web/maps_config.js` puis definir `googleMapsWebApiKey`.
 - Android: definir `MAPS_API_KEY` dans `frontend/android/local.properties` (non committe).
 - iOS: definir `GMS_API_KEY` dans Xcode Build Settings ou xcconfig local (non committe).
+
+## iOS CI
+- Workflow iOS sans signature: `.github/workflows/flutter-ios.yml`
+- Il valide la compilation release (`flutter build ios --no-codesign`) sur macOS.
 
 ## iOS preprod/prod checklist
 - Mettre un vrai `PRODUCT_BUNDLE_IDENTIFIER` (pas `com.example.frontend`).

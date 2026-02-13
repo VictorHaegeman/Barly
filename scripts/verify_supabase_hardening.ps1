@@ -7,6 +7,10 @@ param(
 
   [Parameter(Mandatory = $false)]
   [string]$Password = "BarlyCheck#2026!"
+
+  ,
+  [Parameter(Mandatory = $false)]
+  [switch]$FailOnCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -111,7 +115,7 @@ if ($token -and $uid) {
   $storageOwnDelete = Invoke-Supa -Method "DELETE" -Path "/storage/v1/object/avatars/$ownPath" -Token $token
 }
 
-[ordered]@{
+$result = [ordered]@{
   checks = [ordered]@{
     access_code_hash_blocked_anon = (-not $anonHash.ok)
     access_code_hash_blocked_authenticated = (-not $authedHash.ok)
@@ -137,4 +141,22 @@ if ($token -and $uid) {
     storage_own_delete_status = if ($storageOwnDelete) { $storageOwnDelete.status } else { $null }
     storage_own_delete_error = if ($storageOwnDelete) { $storageOwnDelete.raw } else { $null }
   }
-} | ConvertTo-Json -Depth 10
+}
+
+$result | ConvertTo-Json -Depth 10
+
+if ($FailOnCheck) {
+  $checks = $result.checks
+  $allPass =
+    $checks.access_code_hash_blocked_anon -and
+    $checks.access_code_hash_blocked_authenticated -and
+    $checks.join_private_rpc_deployed -and
+    $checks.join_public_rpc_deployed -and
+    $checks.storage_own_upload_ok -and
+    $checks.storage_other_upload_blocked -and
+    $checks.storage_own_delete_ok
+
+  if (-not $allPass) {
+    exit 1
+  }
+}
