@@ -31,7 +31,8 @@ if (-not (Test-Path $frontend)) {
 if (Test-Path $keyPropsPath) {
   $keyProps = Get-Content $keyPropsPath
   foreach ($required in @("storePassword", "keyPassword", "keyAlias", "storeFile")) {
-    if ($keyProps -notmatch "^\s*$required\s*=\s*.+$") {
+    # $keyProps is an array of lines. Use -match (not -notmatch) to avoid false positives.
+    if (-not ($keyProps -match "^\s*$required\s*=\s*.+$")) {
       Fail "Missing $required in android/key.properties"
     }
   }
@@ -40,25 +41,66 @@ if (Test-Path $keyPropsPath) {
   Fail "Missing android/key.properties"
 }
 
-if (Test-Path $localPropsPath) {
+# Maps key can be provided either via local.properties (local dev) or via Gradle project property
+# (CI uses ORG_GRADLE_PROJECT_MAPS_API_KEY which becomes -PMAPS_API_KEY).
+$mapsKey = $null
+if ($env:ORG_GRADLE_PROJECT_MAPS_API_KEY) {
+  $mapsKey = $env:ORG_GRADLE_PROJECT_MAPS_API_KEY
+}
+elseif ($env:MAPS_API_KEY) {
+  $mapsKey = $env:MAPS_API_KEY
+}
+
+if ($mapsKey -and $mapsKey.Trim().Length -gt 0) {
+  Pass "MAPS_API_KEY present via environment (ORG_GRADLE_PROJECT_MAPS_API_KEY/MAPS_API_KEY)"
+} elseif (Test-Path $localPropsPath) {
   $localProps = Get-Content $localPropsPath
   if ($localProps -match "^\s*MAPS_API_KEY\s*=\s*.+$") {
     Pass "MAPS_API_KEY present in android/local.properties"
   } else {
-    Fail "Missing MAPS_API_KEY in android/local.properties"
+    Fail "Missing MAPS_API_KEY (set ORG_GRADLE_PROJECT_MAPS_API_KEY or add MAPS_API_KEY to android/local.properties)"
   }
 } else {
-  Fail "Missing android/local.properties"
+  Fail "Missing MAPS_API_KEY (set ORG_GRADLE_PROJECT_MAPS_API_KEY or create android/local.properties with MAPS_API_KEY)"
 }
 
-if (Get-Command java -ErrorAction SilentlyContinue) {
-  $javaVersion = (& java -version) 2>&1
-  if ($VerboseOutput) {
-    $javaVersion | ForEach-Object { Write-Host $_ }
+# Try to locate a usable Java (Android Studio bundles one). If found, set JAVA_HOME for this session.
+function Resolve-JavaHome {
+  $candidates = @()
+  if ($env:JAVA_HOME) { $candidates += $env:JAVA_HOME }
+  if ($env:ProgramFiles) {
+    $candidates += (Join-Path $env:ProgramFiles "Android\Android Studio\jbr")
+    $candidates += (Join-Path $env:ProgramFiles "Android\Android Studio\jre")
+    $candidates += (Join-Path $env:ProgramFiles "Java\jdk-21")
+    $candidates += (Join-Path $env:ProgramFiles "Java\jdk-17")
   }
+  # Don't use $home as a loop variable: $HOME is a built-in read-only variable.
+  foreach ($candidateHome in $candidates) {
+    if ($candidateHome -and (Test-Path (Join-Path $candidateHome "bin\java.exe"))) {
+      return $candidateHome
+    }
+  }
+  return $null
+}
+
+$javaCmd = Get-Command java -ErrorAction SilentlyContinue
+if (-not $javaCmd) {
+  $resolvedHome = Resolve-JavaHome
+  if ($resolvedHome) {
+    $env:JAVA_HOME = $resolvedHome
+    $env:PATH = (Join-Path $resolvedHome "bin") + ";" + $env:PATH
+    $javaCmd = Get-Command java -ErrorAction SilentlyContinue
+  }
+}
+
+if ($javaCmd) {
+  # `java -version` writes to stderr; in PowerShell this can be treated as an error when
+  # $ErrorActionPreference = "Stop". Use cmd.exe to capture output safely.
+  $javaVersion = (cmd /c "java -version 2>&1")
+  if ($VerboseOutput) { $javaVersion | ForEach-Object { Write-Host $_ } }
   Pass "java command available"
 } else {
-  Fail "java not found in PATH"
+  Fail "java not found (install a JDK or set JAVA_HOME, e.g. to Android Studio's jbr)"
 }
 
 if ($env:JAVA_HOME) {
