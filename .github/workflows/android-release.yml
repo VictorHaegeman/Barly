@@ -46,10 +46,53 @@ jobs:
           test -n "${{ secrets.ANDROID_KEY_PASSWORD }}" || (echo "Missing secret: ANDROID_KEY_PASSWORD" && exit 1)
 
       - name: Restore Android keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          # Secrets copied/pasted from terminals can include CRLF/newlines/spaces.
-          # Strip common whitespace before decoding to avoid "base64: invalid input".
-          printf '%s' "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 --decode > android/upload-keystore.jks
+          # Decode the keystore in a resilient way:
+          # - strip whitespace
+          # - accept base64url (-/_)
+          # - auto-pad
+          # - provide diagnostics without printing the secret
+          python3 - <<'PY'
+          import base64
+          import os
+          import re
+          import sys
+
+          raw = os.environ.get("KEYSTORE_B64", "")
+          clean = re.sub(r"\s+", "", raw).strip().strip('"').strip("'")
+          # Tolerate base64url variants
+          clean = clean.replace("-", "+").replace("_", "/")
+          # Auto-pad to multiple of 4
+          clean += "=" * (-len(clean) % 4)
+
+          if not clean:
+            print("ANDROID_UPLOAD_KEYSTORE_BASE64 is empty after cleanup.")
+            sys.exit(1)
+
+          if not re.fullmatch(r"[A-Za-z0-9+/=]+", clean):
+            bad = re.findall(r"[^A-Za-z0-9+/=]", clean)
+            print(
+              f"ANDROID_UPLOAD_KEYSTORE_BASE64 is not valid base64 "
+              f"(len={len(clean)}, invalid_chars={len(bad)})."
+            )
+            sys.exit(1)
+
+          try:
+            data = base64.b64decode(clean, validate=False)
+          except Exception as e:
+            print(f"ANDROID_UPLOAD_KEYSTORE_BASE64 decode failed: {e}")
+            sys.exit(1)
+
+          out_path = "android/upload-keystore.jks"
+          os.makedirs(os.path.dirname(out_path), exist_ok=True)
+          with open(out_path, "wb") as f:
+            f.write(data)
+
+          print(f"Decoded keystore bytes: {len(data)}")
+          PY
+
           test -s android/upload-keystore.jks
 
       - name: Generate Android signing files
