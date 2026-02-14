@@ -47,7 +47,10 @@ jobs:
 
       - name: Restore Android keystore
         run: |
-          echo "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/upload-keystore.jks
+          # Secrets copied/pasted from terminals can include CRLF/newlines/spaces.
+          # Strip common whitespace before decoding to avoid "base64: invalid input".
+          printf '%s' "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 --decode > android/upload-keystore.jks
+          test -s android/upload-keystore.jks
 
       - name: Generate Android signing files
         run: |
