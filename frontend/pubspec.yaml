@@ -12,9 +12,11 @@ dependencies:
   cupertino_icons: ^1.0.6
   http: ^1.2.2
   shared_preferences: ^2.3.2
-  # google_fonts 6.3.0 fails to compile with Dart 3.11 (const map uses FontWeight keys).
-  # Keep on 6.2.x until google_fonts publishes a compatible fix.
-  google_fonts: ">=6.2.1 <6.3.0"
+  # Workaround: google_fonts 6.2.x uses a const Map with FontWeight keys, which
+  # fails in Dart 3.11+ (const map keys require primitive equality). We vendor
+  # a patched copy until upstream releases a fix.
+  google_fonts:
+    path: third_party/google_fonts_patched
   flutter_svg: ^2.0.9
   geolocator: ^12.0.0
   carousel_slider: ^5.0.0
